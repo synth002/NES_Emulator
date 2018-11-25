@@ -12,6 +12,7 @@ ROM_data		ROM_DATA;
 unsigned char	NES_MEMORY[65536];
 
 
+
 unsigned char Setup_emulator(char *ROM_header) {	
 
 	/*
