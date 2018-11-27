@@ -50,8 +50,6 @@ typedef enum
 }addr_mode;
 
 
-
-
 typedef union
 {
 	unsigned short reg;
@@ -64,18 +62,56 @@ typedef union
 } address_value;
 
 
-
-
 typedef union
 {
 	unsigned short REG;
 	struct
 	{
-		unsigned char LOW : 8;
+		unsigned char LOW  : 8;
 		unsigned char HIGH : 8;
 
 	} BYTE;
 } program_counter;
+
+
+typedef union 
+{
+	unsigned char reg;
+	struct
+	{
+		unsigned char mirroring		   : 1;
+		unsigned char battery		   : 1;
+		unsigned char trainer		   : 1;
+		unsigned char ignore_mirroring : 1;
+		unsigned char mapper_lsn	   : 4;
+	} flag;
+} flags_six;
+
+
+typedef union
+{
+	unsigned char reg;
+	struct
+	{
+		unsigned char vs_unisystem	: 1;
+		unsigned char playchoice	: 1;
+		unsigned char ines_2		: 2;
+		unsigned char mapper_msn	: 4;
+	} flag;
+} flags_seven;
+
+
+//***ROM header data***
+typedef struct {
+	unsigned char nes_identifier[4];
+	unsigned char mapper_number;
+	unsigned char prg_rom_size;
+	unsigned char chr_rom_size;
+	flags_six     flags_6;
+	flags_seven   flags_7;
+	unsigned char prg_ram_size;
+	void(*mapper_ptr)(void);
+}ROM_data;
 
 
 
@@ -85,7 +121,7 @@ typedef struct {
 	bool branch_taken;
 	unsigned char opcode;
 	addr_mode address_mode;
-	void(*instruction_ptr)(cpu_emu_dat *cpu_emu_data);
+	void(*instruction_ptr)(cpu_emu_dat);
 	unsigned char cylce_counter;
 	unsigned char data;
 	unsigned char state[10];
@@ -114,6 +150,8 @@ typedef union
 } status_reg;
 
 
+
+
 //***CPU registers***
 typedef struct {
 	unsigned char	ACC_REG;			//Accumulator register
@@ -128,15 +166,17 @@ typedef struct {
 
 
 
+
+
+void Get_mapper_pointer(void);
+void Mapper_0(void);
+
 //Local function prototypes
 void Instruction_lookup(unsigned char OP_CODE, cpu_emu_dat *cpu_emu_data);
-
-
 
 //External function prototypes
 extern void Update_negative_flag(unsigned char val);
 extern void Update_zero_flag(unsigned char val);
-
 
 extern void Set_negative_flag(void);
 extern void Set_zero_flag(void);

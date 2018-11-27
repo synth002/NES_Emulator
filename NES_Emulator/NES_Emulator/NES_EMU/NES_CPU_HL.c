@@ -25,7 +25,7 @@ void Setup_CPU(void) {
 	CPU_REGISTERS.Y_REG = 0;
 	CPU_REGISTERS.ACC_REG = 0;
 	CPU_REGISTERS.CYCLE_COUNT = 0;
-	CPU_REGISTERS.STACK_POINTER = TOP_OF_STACK;
+	CPU_REGISTERS.STACK_POINTER = 0;
 	CPU_REGISTERS.CPU_STATUS_REG.REG = STATUS_REG_RESET;
 	CPU_REGISTERS.PROGRAM_COUNTER.REG = RESET_VECTOR_ADDR;
 }
@@ -42,7 +42,6 @@ void CPU_cycle(void) {
 	static bool page_crossed = false;
 	static unsigned char state;
 	unsigned char opcode = 0;
-	unsigned short temp;
 	cpu_emu_dat cpu_emu_data;
 
 
@@ -148,7 +147,7 @@ void CPU_cycle(void) {
 
 	case 15 :	//Data read & execute - Base_addr LSB + Zero page Y
 		cpu_emu_data.base_addr.byte.low += CPU_REGISTERS.Y_REG;
-		cpu_emu_data.data = Memory_accessa(fetch_op, cpu_emu_data.base_addr.byte.low, 0);
+		cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.base_addr.byte.low, 0);
 		cpu_emu_data.instruction_ptr(&cpu_emu_data);
 		break;
 
@@ -1323,7 +1322,7 @@ void BVS(cpu_emu_dat *cpu_emu_data) {
 }
 
 
-void CLC(void) {
+void CLC(cpu_emu_dat *cpu_emu_data) {
 
 	//CLC - Clear carry flag
 	//Affects flags - C
@@ -1331,7 +1330,7 @@ void CLC(void) {
 }
 
 
-void CLD(void) {
+void CLD(cpu_emu_dat *cpu_emu_data) {
 
 	//CLD - Clear decimal flag
 	//Affects flags - D
@@ -1339,7 +1338,7 @@ void CLD(void) {
 }
 
 
-void CLI(void) {
+void CLI(cpu_emu_dat *cpu_emu_data) {
 
 	//CLI - Clear IRQ disable flag
 	//Affects flags - I
@@ -1347,7 +1346,7 @@ void CLI(void) {
 }
 
 
-void CLV(void) {
+void CLV(cpu_emu_dat *cpu_emu_data) {
 
 	//CLV - Clear overflow flag
 	//Affects flags - V
@@ -1402,25 +1401,25 @@ void DEC(cpu_emu_dat *cpu_emu_data) {
 }
 
 
-void DEX(void) {
+void DEX(cpu_emu_dat *cpu_emu_data) {
 
 	//DEX - Decrement value in X register by one (result kept).
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z, N
 	CPU_REGISTERS.X_REG--;
 	Update_negative_flag(CPU_REGISTERS.X_REG);
-	Update_Zero_flag(CPU_REGISTERS.X_REG);
+	Update_zero_flag(CPU_REGISTERS.X_REG);
 }
 
 
-void DEY(void) {
+void DEY(cpu_emu_dat *cpu_emu_data) {
 
 	//DEX - Decrement value in Y register by one (result kept).
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N
 	CPU_REGISTERS.Y_REG--;
 	Update_negative_flag(CPU_REGISTERS.Y_REG);
-	Update_Zero_flag(CPU_REGISTERS.Y_REG);
+	Update_zero_flag(CPU_REGISTERS.Y_REG);
 }
 
 
@@ -1430,7 +1429,7 @@ void EOR(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N
 	CPU_REGISTERS.ACC_REG ^= cpu_emu_data->data;
-	Update_Zero_flag(CPU_REGISTERS.ACC_REG);
+	Update_zero_flag(CPU_REGISTERS.ACC_REG);
 	Update_negative_flag(CPU_REGISTERS.ACC_REG);
 }
 
@@ -1441,12 +1440,12 @@ void INC(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N 
 	cpu_emu_data->data++;
-	Update_Zero_flag(cpu_emu_data->data);
+	Update_zero_flag(cpu_emu_data->data);
 	Update_negative_flag(cpu_emu_data->data);
 }
 
 
-void INX(void) {
+void INX(cpu_emu_dat *cpu_emu_data) {
 
 	//DEX - Increment value in X register by one (result kept).
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
@@ -1457,7 +1456,7 @@ void INX(void) {
 }
 
 
-void INY(void) {
+void INY(cpu_emu_dat *cpu_emu_data) {
 
 	//DEY - Increment value in Y register by one (result kept).
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
@@ -1605,7 +1604,7 @@ void ROL(cpu_emu_dat *cpu_emu_data) {
 	//Affects flags - Z,N,C
 	unsigned char temp = CPU_REGISTERS.CPU_STATUS_REG.BIT.C;
 
-	if (cpu_emu_data == accumulator) {
+	if (cpu_emu_data->address_mode == accumulator) {
 		CPU_REGISTERS.CPU_STATUS_REG.BIT.C = (CPU_REGISTERS.ACC_REG & (1 << 7));
 		CPU_REGISTERS.ACC_REG <<= 1;
 		CPU_REGISTERS.ACC_REG |= temp;
@@ -1630,7 +1629,7 @@ void ROR(cpu_emu_dat *cpu_emu_data) {
 	//Affects flags - Z,N,C
 	unsigned char temp = CPU_REGISTERS.CPU_STATUS_REG.BIT.C;
 
-	if (cpu_emu_data == accumulator) {
+	if (cpu_emu_data->address_mode == accumulator) {
 		CPU_REGISTERS.CPU_STATUS_REG.BIT.C = (CPU_REGISTERS.ACC_REG & 0x01);
 		CPU_REGISTERS.ACC_REG >>= 1;
 		CPU_REGISTERS.ACC_REG |= (temp << 7);
@@ -1674,7 +1673,7 @@ void SBC(cpu_emu_dat *cpu_emu_data) {
 }
 
 
-void SEC(void) {
+void SEC(cpu_emu_dat *cpu_emu_data) {
 
 	//SEC - Set carry flag.
 	//Affects flags - C
@@ -1682,7 +1681,7 @@ void SEC(void) {
 }
 
 
-void SED(void) {
+void SED(cpu_emu_dat *cpu_emu_data) {
 
 	//SED - Set decimal flag.
 	//Affects flags - D
@@ -1690,7 +1689,7 @@ void SED(void) {
 }
 
 
-void SEI(void) {
+void SEI(cpu_emu_dat *cpu_emu_data) {
 
 	//SEI - Set IRQ disable flag.
 	//Affects flags - I
@@ -1722,7 +1721,7 @@ void STY(cpu_emu_dat *cpu_emu_data) {
 }
 
 
-void TAX(void) {
+void TAX(cpu_emu_dat *cpu_emu_data) {
 
 	//TAX - Transfer accumulator to X register. 
 	//Affects flags - Z,N
@@ -1732,7 +1731,7 @@ void TAX(void) {
 }
 
 
-void TAY(void) {
+void TAY(cpu_emu_dat *cpu_emu_data) {
 
 	//TAY - Transfer accumulator to Y register. 
 	//Affects flags - Z,N
@@ -1742,7 +1741,7 @@ void TAY(void) {
 }
 
 
-void TSX(void) {
+void TSX(cpu_emu_dat *cpu_emu_data) {
 
 	//TSX - Transfer stack pointer to X register.
 	//Affects flags - Z,N (confirm this)
@@ -1752,7 +1751,7 @@ void TSX(void) {
 }
 
 
-void TXA(void) {
+void TXA(cpu_emu_dat *cpu_emu_data) {
 
 	//TXA - Tansfer X register to accumulator.
 	//Affects flags - Z,N
@@ -1762,7 +1761,7 @@ void TXA(void) {
 }
 
 
-void TXS(void) {
+void TXS(cpu_emu_dat *cpu_emu_data) {
 
 	//TXS - Transfer X register to stack pointer.
 	//Affects flags - NONE
@@ -1770,7 +1769,7 @@ void TXS(void) {
 }
 
 
-void TYA(void) {
+void TYA(cpu_emu_dat *cpu_emu_data) {
 
 	//TYA - Transfer Y register into the accumulator.
 	//Affects flags - Z,N

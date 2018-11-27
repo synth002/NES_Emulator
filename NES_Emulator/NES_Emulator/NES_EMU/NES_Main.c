@@ -2,14 +2,17 @@
 #include <string.h>
 #include <stdlib.h>
 #include "NES.h"
-#include "NES_CPU_Shared.h"
+#include "NES_CPU.h"
 
 #define NIBBLE_SHIFT 0x04
 #define NIBBLE_MASK  0x0F
 
+#define SIXTEEN_KB   0x4000
+
 //***Local globals*** 
 ROM_data		ROM_DATA;
 unsigned char	NES_MEMORY[65536];
+
 
 
 
@@ -34,31 +37,50 @@ unsigned char Setup_emulator(char *ROM_header) {
 	unsigned char a;
 	char *iNES_identifier = "NES";
 
+
 	//Check if ROM is valid iNES format
 	for (a = 0; a <= 2; a++) {
 		if (iNES_identifier[a] != ROM_header[a]) return 0;
 	}
 
+
 	//Define ROM data parameters
-	ROM_DATA.PRG_ROM_SIZE = ROM_header[3];
-	ROM_DATA.CHR_ROM_SIZE = ROM_header[4];
-	ROM_DATA.FLAGS_6 = ROM_header[5];
-	ROM_DATA.FLAGS_7 = ROM_header[6];
-	ROM_DATA.MAPPER_NUMBER = (ROM_DATA.FLAGS_6 >> NIBBLE_SHIFT);
-	ROM_DATA.MAPPER_NUMBER |= (ROM_DATA.FLAGS_7 & (NIBBLE_MASK << NIBBLE_SHIFT));
+	ROM_DATA.prg_rom_size   = ROM_header[3];
+	ROM_DATA.chr_rom_size   = ROM_header[4];
+	ROM_DATA.flags_6.reg    = ROM_header[5];
+	ROM_DATA.flags_7.reg    = ROM_header[6];
+	ROM_DATA.mapper_number  = ROM_DATA.flags_6.flag.mapper_lsn;
+	ROM_DATA.mapper_number |= (ROM_DATA.flags_7.flag.mapper_msn << 4);
+	ROM_DATA.prg_ram_size   = ROM_header[7];
 
-	/*
-	//***** For testing purposes only! ******************
-	printf("MAPPER_NUMBER = %d\n", ROM_DATA.MAPPER_NUMBER);
-	printf("PRG_ROM_SIZE = %d\n", ROM_DATA.PRG_ROM_SIZE);
-	printf("CHR_ROM_SIZE = %d\n", ROM_DATA.CHR_ROM_SIZE);
-	printf("Flags_6 = %d\n", ROM_DATA.FLAGS_6);
-	printf("Flags_7 = %d\n", ROM_DATA.FLAGS_7);
-	//***************************************************
-	*/
 	
+	
+	//***** For testing purposes only! ******************
+	printf("MAPPER_NUMBER	= %d\n", ROM_DATA.mapper_number);
+	printf("PRG_ROM_SIZE	= %d (x16KB)\n", ROM_DATA.prg_rom_size);
+	printf("CHR_ROM_SIZE	= %d (x8KB)\n", ROM_DATA.chr_rom_size);
+	printf("CHR_RAM_SIZE	= %d (x8KB)\n", ROM_DATA.prg_ram_size);
+	printf("Flags_6		= 0x%.2X\n", ROM_DATA.flags_6.reg);
+	printf("Flags_7		= 0x%.2X\n", ROM_DATA.flags_7.reg);
+	printf("****************************\n");
+	printf("**** Flags 6 Breakdown *****\n");
+	printf("Mirroring	 = %d\n", ROM_DATA.flags_6.flag.mirroring);
+	printf("Cart Battery	 = %d\n", ROM_DATA.flags_6.flag.battery);
+	printf("Rom trainer	 = %d\n", ROM_DATA.flags_6.flag.trainer);
+	printf("Ignore mirroring = %d\n", ROM_DATA.flags_6.flag.ignore_mirroring);
+	printf("Mapper num LSN	 = %d\n", ROM_DATA.flags_6.flag.mapper_lsn);
+	printf("****************************\n");
+	printf("**** Flags 7 Breakdown *****\n");
+	printf("VS Unisystem     = %d\n", ROM_DATA.flags_7.flag.vs_unisystem);
+	printf("Playchoice	 = %d\n", ROM_DATA.flags_7.flag.playchoice);
+	printf("iNes 2.0	 = %d\n", ROM_DATA.flags_7.flag.ines_2);
+	printf("Mapper num MSN	 = %d\n", ROM_DATA.flags_7.flag.mapper_msn);
+	printf("****************************\n");
+	//***************************************************
+	
+	Get_mapper_pointer();
 
-	Setup_CPU();
+	//Setup_CPU();
 	//Setup_PPU();
 	//Setup_APU();
 
@@ -66,9 +88,11 @@ unsigned char Setup_emulator(char *ROM_header) {
 };
 
 
+
+
 void Emulator_action_tick(void) {
 
-	CPU_cycle();
+	//CPU_cycle();
 	//PPU_cycle();
 	//APU_cycle();
 
@@ -77,11 +101,31 @@ void Emulator_action_tick(void) {
 
 
 
+void Get_mapper_pointer(void) {
+
+	switch (ROM_DATA.mapper_number) {
+
+
+	case 0 :
+		ROM_DATA.mapper_ptr = Mapper_0;
+		break;
+
+
+	default:
+		//Error
+		break;
+	}
+}
 
 
 
 
+void Mapper_0(void) {
 
+	unsigned int num_bytes;
+	num_bytes = ROM_DATA.prg_rom_size * SIXTEEN_KB;
+	Grab_rom_data(NES_MEMORY, num_bytes, ROM_DATA.flags_6.flag.trainer);
+}
 
 
 

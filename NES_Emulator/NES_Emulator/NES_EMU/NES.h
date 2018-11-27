@@ -8,19 +8,13 @@
 */
 
 
-//***ROM header data***
-typedef struct {
-	unsigned char NES_IDENTIFIER[4];
-	unsigned char MAPPER_NUMBER;
-	unsigned char PRG_ROM_SIZE;
-	unsigned char CHR_ROM_SIZE;
-	unsigned char FLAGS_6;
-	unsigned char FLAGS_7;
-}ROM_data;
-
 
 //Should be called by host at startup or system reset
 extern unsigned char Setup_emulator(char *ROM_header);
+
+//This function is called by the 
+//emulator and handled by the host
+extern void Grab_rom_data(unsigned char *NES_MEMORY, unsigned int bytes, unsigned char trainer);
 
 //Should be called by host at fixed timing intervals
 extern void Emulator_action_tick(void);

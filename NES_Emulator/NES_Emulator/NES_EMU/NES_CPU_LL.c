@@ -11,6 +11,7 @@
 //**** Shared globals ****
 extern CPU_registers CPU_REGISTERS;
 extern unsigned char NES_MEMORY[65536];
+extern ROM_data		 ROM_DATA;
 
 
 bool Check_for_page_crossing(unsigned short value) {
@@ -23,6 +24,10 @@ bool Check_for_page_crossing(unsigned short value) {
 unsigned char Memory_access(unsigned char rw, unsigned short memory_address, unsigned char data) {
 
 	/*
+
+	MAPPER BANK SWITCHES MUST BE HANDLED IN THIS FUNCTION!!!
+	THE MAPPER FUNCTION POINTER WILL BE CALLED WHEN A BANK SWITCH IS DETECTED.
+
 	------------>CPU MEMORY MAP<--------------
 
 	Addr range			Size		Mapping
@@ -57,6 +62,10 @@ unsigned char Memory_access(unsigned char rw, unsigned short memory_address, uns
 
 	return 0;
 }
+
+
+
+
 
 
 unsigned char Fetch_opcode(void) {		//Needs to be sorted out to tie in with 'Acces_nes_memory' function

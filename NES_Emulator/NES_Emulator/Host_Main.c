@@ -3,61 +3,57 @@
 #include <stdlib.h>
 #include "NES_EMU\NES.h"
 
-
 #define NES_HEADER_LEN  0x0F
+FILE *ROM_FP;
 
 
 
+
+void Grab_rom_data(unsigned char *NES_MEMORY, unsigned int bytes, unsigned char trainer) {
+
+	//This function is called by the emulator
+	//to request ROM data from the host
+
+
+}
 
 
 
 
 int main(void) {
 
-	//Function place holders
-	unsigned char a;
 
-
-	//For error handling
-	//unsigned short error_code;
-	//char *error_string;
-
-
-
-	FILE *ROM_FP;
 	char ROM_header[NES_HEADER_LEN];
 
 
-
-	//Open NES ROM file 
-	ROM_FP = fopen("Super_Mario_Bros.nes", "r");
+	//Open NES ROM file for reading
+	ROM_FP = fopen("nestest.nes", "r");
 	if (ROM_FP == NULL) {
 		printf("Error opening NES ROM file!");
 	}
 	
-
 	
 	//Get ROM header data
-	for (a = 0; a <= NES_HEADER_LEN - 1; a++) {
+	for (unsigned char a = 0; a <= NES_HEADER_LEN - 1; a++) {
 		ROM_header[a] = fgetc(ROM_FP);
 		if( a == 2) 	fseek(ROM_FP, 4, SEEK_SET);
 	}
+
 
 	fclose(ROM_FP);
 
 
 	//Setup emulator (Check vaid header file)
-	a = Setup_emulator(ROM_header);
-	if (a == 1) { printf("valid ROM!"); }
-	else { printf("invalid ROM!"); }
+	if ( Setup_emulator(ROM_header) ) { 
+		printf("valid ROM!"); 
+	}
+	else { 
+		printf("invalid ROM!"); 
+	}
 
 
 
-	
-	
-	while (1) {
-
-	};
+	while (1) { }
 
 
 	return 0;

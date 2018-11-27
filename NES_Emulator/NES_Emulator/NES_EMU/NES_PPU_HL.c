@@ -6,9 +6,7 @@
 	The NTSC video signal is made up of 262 scanlines, and 20 of those are spent in vblank state.
 	After the program has received an NMI, it has about 2270 cycles to update the palette, sprites, 
 	and nametables as necessary before rendering begins.
-*/
 
-/*
 	On NTSC systems, the PPU divides the master clock by 4 while the CPU uses the master clock divided by 12. 
 	Since both clocks are fed off the same master clock, this means that there are exactly three PPU ticks per CPU cycle,
 	with no drifting over time(though the clock alignment might vary depending on when you press the Reset button).
@@ -19,7 +17,6 @@
 
 
 extern unsigned char NES_MEMORY[65536];
-
 unsigned char NES_PPU_OUTPUT[240][256];
 
 
