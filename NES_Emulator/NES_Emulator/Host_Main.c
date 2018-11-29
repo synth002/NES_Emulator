@@ -9,13 +9,34 @@ FILE *ROM_FP;
 
 
 
-void Grab_rom_data(unsigned char *NES_MEMORY, unsigned int bytes, unsigned char trainer) {
+void Grab_rom_data(unsigned char *NES_MEMORY, unsigned int write_address, unsigned int num_bytes, unsigned int read_address) {
 
 	//This function is called by the emulator
 	//to request ROM data from the host
+	unsigned int a;
 
+	//***** For testing purposes only! ******************
+	printf("****************************\n");
+	printf("write_address :  0x%.4X\n", write_address);
+	printf("num_bytes : %u\n", num_bytes);
+	printf("read_address : 0x%.4X\n", read_address);
+	printf("****************************\n");
+	//***************************************************
 
+	fseek(ROM_FP, read_address, SEEK_SET);
+
+	for (a = 0; a <= num_bytes - 1; a++ ) {
+		NES_MEMORY[write_address] = fgetc(ROM_FP);
+		//***** For testing purposes only! ******************
+		printf("write to : 0x%.4X,  Value of : 0x%.2X\n", write_address, NES_MEMORY[write_address]);
+		//***************************************************
+		write_address++;
+	}
 }
+
+
+
+
 
 
 
@@ -27,7 +48,7 @@ int main(void) {
 
 
 	//Open NES ROM file for reading
-	ROM_FP = fopen("nestest.nes", "r");
+	ROM_FP = fopen("nestest.nes", "rb");	//File must be opened in binary read mode!!!!
 	if (ROM_FP == NULL) {
 		printf("Error opening NES ROM file!");
 	}
@@ -40,7 +61,7 @@ int main(void) {
 	}
 
 
-	fclose(ROM_FP);
+
 
 
 	//Setup emulator (Check vaid header file)
@@ -54,7 +75,7 @@ int main(void) {
 
 
 	while (1) { }
-
+	fclose(ROM_FP);
 
 	return 0;
 }

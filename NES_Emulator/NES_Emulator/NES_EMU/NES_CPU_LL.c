@@ -44,6 +44,9 @@ unsigned char Memory_access(unsigned char rw, unsigned short memory_address, uns
 
 	unsigned char fetched_byte = 0;
 
+	//Apply mapper mask
+	memory_address &= ROM_DATA.mapper_mask;
+
 	//Lines 11, 12 of CPU address bus are always tied low
 	memory_address &= ~(0x03 << 11);
 

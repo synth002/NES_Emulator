@@ -111,6 +111,7 @@ typedef struct {
 	flags_seven   flags_7;
 	unsigned char prg_ram_size;
 	void(*mapper_ptr)(void);
+	unsigned short mapper_mask;
 }ROM_data;
 
 
