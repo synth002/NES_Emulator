@@ -15,6 +15,7 @@ void Grab_rom_data(unsigned char *NES_MEMORY, unsigned int write_address, unsign
 	//to request ROM data from the host
 	unsigned int a;
 
+	/*
 	//***** For testing purposes only! ******************
 	printf("****************************\n");
 	printf("write_address :  0x%.4X\n", write_address);
@@ -22,13 +23,14 @@ void Grab_rom_data(unsigned char *NES_MEMORY, unsigned int write_address, unsign
 	printf("read_address : 0x%.4X\n", read_address);
 	printf("****************************\n");
 	//***************************************************
+	*/
 
 	fseek(ROM_FP, read_address, SEEK_SET);
 
 	for (a = 0; a <= num_bytes - 1; a++ ) {
 		NES_MEMORY[write_address] = fgetc(ROM_FP);
 		//***** For testing purposes only! ******************
-		printf("write to : 0x%.4X,  Value of : 0x%.2X\n", write_address, NES_MEMORY[write_address]);
+		//printf("write to : 0x%.4X,  Value of : 0x%.2X\n", write_address, NES_MEMORY[write_address]);
 		//***************************************************
 		write_address++;
 	}

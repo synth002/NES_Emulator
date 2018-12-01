@@ -17,6 +17,9 @@
 #define STATUS_REG_RESET		0x34
 
 
+
+
+
 typedef enum
 {
 	fetch_op,
@@ -48,6 +51,7 @@ typedef enum
 	indirect,
 	none
 }addr_mode;
+
 
 
 typedef union
@@ -125,7 +129,7 @@ typedef struct {
 	void(*instruction_ptr)(cpu_emu_dat);
 	unsigned char cylce_counter;
 	unsigned char data;
-	unsigned char state[10];
+	unsigned char *state;
 	address_value base_addr;
 	address_value indexed_addr;
 }cpu_emu_dat;

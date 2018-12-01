@@ -61,7 +61,19 @@ unsigned char Setup_emulator(char *ROM_header) {
 	ROM_DATA.mapper_number |= (ROM_DATA.flags_7.flag.mapper_msn << 4);
 	ROM_DATA.prg_ram_size   = ROM_header[7];
 
-	
+
+	TESTER test;
+	test.reg = 0;
+
+	for (unsigned short a = 0; a <= 300; a++) {
+		test.byte.low++;
+		printf("test.byte.low = %d\n", test.byte.low);
+		printf("test.reg = %d\n", test.reg);
+	}
+
+
+
+	/*
 	//***** For testing purposes only! ******************
 	printf("MAPPER_NUMBER	= %d\n", ROM_DATA.mapper_number);
 	printf("PRG_ROM_SIZE	= %d (x16KB)\n", ROM_DATA.prg_rom_size);
@@ -84,7 +96,7 @@ unsigned char Setup_emulator(char *ROM_header) {
 	printf("Mapper num MSN	 = %d\n", ROM_DATA.flags_7.flag.mapper_msn);
 	printf("****************************\n");
 	//***************************************************
-	
+	*/
 
 	//Get function pointer &
 	//Initilise ROM mapping

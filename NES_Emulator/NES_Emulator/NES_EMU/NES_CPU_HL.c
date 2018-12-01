@@ -7,6 +7,55 @@
 */
 
 
+//Single byte operations
+unsigned char single_byte_intstruction[3]	 =  { 0, 3, 0xFF };
+//Read operations
+unsigned char read_execute_immediate[3]      =  { 0, 3, 0xFF };
+unsigned char read_execute_zeropage[4]       =  { 0, 4, 7, 0xFF };
+unsigned char read_execute_absolute[5]       =  { 0, 4, 5, 6, 0xFF };
+unsigned char read_execute_indirect_x[7]     =  { 0, 4, 1, 9, 12, 13, 0xFF };
+unsigned char read_execute_absolute_x[6]     =  { 0, 4, 5, 18, 18, 0xFF };			//Skip second 18 state if page crossed = false!
+unsigned char read_execute_absolute_y[6]     =  { 0, 4, 5, 19, 19, 0xFF };			//Skip second 19 state if page crossed = false!
+unsigned char read_execute_zeropage_x[5]     =  { 0, 4, 1, 14, 0xFF };
+unsigned char read_execute_zeropage_y[5]     =  { 0, 4, 1, 15, 0xFF };
+unsigned char read_execute_indirect_y[7]     =  { 0, 4, 11, 12, 20, 20, 0xFF };		//Skip second 20 state if page crossed = false!
+//Store operations
+unsigned char store_operation_zeropage[4]    =  { 0, 4, 34, 0xFF };
+unsigned char store_operation_absolute[5]    =  { 0, 4, 5, 34, 0xFF };
+unsigned char store_operation_indirect_x[7]  =  { 0, 4, 1, 9, 12, 39, 0xFF };
+unsigned char store_operation_absolute_x[6]  =  { 0, 4, 5, 16, 39, 0xFF };
+unsigned char store_operation_absolute_y[6]  =  { 0, 4, 5, 17, 39, 0xFF };
+unsigned char store_operation_zeropage_x[6]  =  { 0, 4, 1, 36, 0xFF };
+unsigned char store_operation_zeropage_y[6]  =  { 0, 4, 1, 37, 0xFF };
+unsigned char store_operation_indirect_y[7]  =  { 0, 4, 11, 12, 21, 39, 0xFF };
+//RMW operations
+unsigned char modify_write_zeropage[6]		 =  { 0, 4, 7, 35, 35, 0xFF };
+unsigned char modify_write_absolute[7]		 =  { 0, 4, 5, 8, 33, 33, 0xFF };
+unsigned char modify_write_zeropage_x[7]	 =  { 0, 4, 1, 14, 35, 35, 0xFF };
+unsigned char modify_write_absolute_x[8]	 =  { 0, 4, 5, 16, 13, 38, 38, 0xFF };
+//Stack push operations
+unsigned char push_operation_php[4]			 = { 0, 2, 26, 0xFF };
+unsigned char push_operation_pha[4]			 = { 0, 2, 27, 0xFF };
+//Stack pull operations
+unsigned char pull_operation_plp[4]			 = { 0, 2, 30, 0xFF };
+unsigned char pull_operation_pla[4]			 = { 0, 2, 29, 0xFF };
+//Subroutine operations
+unsigned char jump_to_subroutine[7]			 = { 0, 4, 28, 24, 25, 6, 0xFF };
+unsigned char rtn_from_subroutine[7]		 = { 0, 2, 28, 31, 32, 2, 0xFF };
+//Break/interrupt operations
+unsigned char break_operation_irq[8]		 = { 0, 2, 24, 25, 26, 44, 45, 0xFF };
+unsigned char rtn_from_interrupt[7]			 = { 0, 2, 28, 30, 31, 32, 0xFF };
+//Jump operations
+unsigned char jump_operation_absolute[4]	 = { 0, 4, 6, 0xFF };
+unsigned char jump_operation_indirect[6]	 = { 0, 4, 5, 22, 23, 0xFF };
+//Branch operations
+unsigned char branch_operation[5]			 = { 0, 3, 41, 41, 0xFF};	//Only continute after 2nd state if branch_taken = true. Only continue after 3rd state if page_crossed = true. 
+//NOP operation 
+unsigned char nop_operation[3]				 = { 0, 2, 0xFF };
+
+
+
+
 //**** Local globals ****
 CPU_registers	CPU_REGISTERS;
 
@@ -50,7 +99,9 @@ void CPU_cycle(void) {
 		cpu_emu_data.base_addr.reg = 0;
 		cpu_emu_data.indexed_addr.reg = 0;
 		cpu_emu_data.data = 0;
+		//if(addressing_mode != implied, accumulator){
 		//CPU_REGISTERS.PROGRAM_COUNTER.REG++;
+		//}
 		opcode = Fetch_opcode();
 		Instruction_lookup(opcode, &cpu_emu_data);
 		return;
@@ -94,6 +145,9 @@ void CPU_cycle(void) {
 		CPU_REGISTERS.PROGRAM_COUNTER.REG++;
 		cpu_emu_data.base_addr.byte.high = Memory_access(fetch_op, CPU_REGISTERS.PROGRAM_COUNTER.REG, 0);
 		CPU_REGISTERS.PROGRAM_COUNTER.REG = cpu_emu_data.base_addr.reg;
+		if (cpu_emu_data.address_mode == absolute) {
+			CPU_REGISTERS.PROGRAM_COUNTER.REG--;
+		}
 		break;
 
 
@@ -115,7 +169,7 @@ void CPU_cycle(void) {
 		break;
 
 
-	case 10:		//Fetch indexed_addr LSB (indexed by Y_REG)
+	case 10:	//Fetch indexed_addr LSB (indexed by Y_REG)
 		cpu_emu_data.base_addr.byte.low += CPU_REGISTERS.Y_REG;
 		cpu_emu_data.indexed_addr.byte.low = Memory_access(fetch_op, cpu_emu_data.base_addr.byte.low, 0);
 		break;
@@ -242,6 +296,7 @@ void CPU_cycle(void) {
 	case 23:	//Absolute indirect + 1 (for JMP)
 		cpu_emu_data.base_addr.reg++;
 		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.HIGH = Memory_access(fetch_op, cpu_emu_data.base_addr.reg, 0);
+		CPU_REGISTERS.PROGRAM_COUNTER.REG--;
 		break;
 
 
@@ -260,8 +315,7 @@ void CPU_cycle(void) {
 
 
 	case 26 :	//Push CPU_STATUS_REG to stack
-		//if BRK - SET B bit in status reg!*******************
-		Memory_access(write_op, CPU_REGISTERS.STACK_POINTER, CPU_REGISTERS.CPU_STATUS_REG.REG);
+		Memory_access(write_op, CPU_REGISTERS.STACK_POINTER, CPU_REGISTERS.CPU_STATUS_REG.REG);					//*******************if BRK - SET B bit in status reg!*******************
 		CPU_REGISTERS.STACK_POINTER--;
 		break;
 
@@ -285,7 +339,7 @@ void CPU_cycle(void) {
 
 	case 30:	//Pull CPU_STATUS_REG from stack
 		CPU_REGISTERS.STACK_POINTER++;
-		CPU_REGISTERS.CPU_STATUS_REG.REG = Memory_access(fetch_op, CPU_REGISTERS.STACK_POINTER, 0);
+		CPU_REGISTERS.CPU_STATUS_REG.REG = Memory_access(fetch_op, CPU_REGISTERS.STACK_POINTER, 0);				//*******************if BRK - SET B bit in status reg!*******************
 		break;
 
 
@@ -318,14 +372,14 @@ void CPU_cycle(void) {
 		break;
 
 
-	case 36:	//STORE - Base addr LOW (STA, STX, STY)
+	case 36:	//STORE - Base addr LOW + X (STA, STX, STY)
 		cpu_emu_data.instruction_ptr(&cpu_emu_data);
 		cpu_emu_data.base_addr.byte.low += CPU_REGISTERS.X_REG;
 		Memory_access(write_op, cpu_emu_data.base_addr.byte.low, cpu_emu_data.data);
 		break;
 
 
-	case 37:	//STORE - Base addr LOW (STA, STX, STY)
+	case 37:	//STORE - Base addr LOW + Y (STA, STX, STY)
 		cpu_emu_data.instruction_ptr(&cpu_emu_data);
 		cpu_emu_data.base_addr.byte.low += CPU_REGISTERS.Y_REG;
 		Memory_access(write_op, cpu_emu_data.base_addr.byte.low, cpu_emu_data.data);
@@ -345,7 +399,7 @@ void CPU_cycle(void) {
 
 	case 40:	//STORE - Indirect indexed Y (STA)
 		cpu_emu_data.instruction_ptr(&cpu_emu_data);
-		Memory_access(write_op, cpu_emu_data.indexed_addr.reg, cpu_emu_data.data);
+		Memory_access(write_op, cpu_emu_data.indexed_addr.reg, cpu_emu_data.data);			//DUPLICATE OF PREVIOUS
 		break;
 	
 
@@ -353,6 +407,7 @@ void CPU_cycle(void) {
 
 	case 41:	
 		if (page_crossed == false) {
+			CPU_REGISTERS.PROGRAM_COUNTER.REG++;
 			page_crossed = Check_for_page_crossing(CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW + cpu_emu_data.data);
 			CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW += cpu_emu_data.data;
 		}
@@ -360,14 +415,20 @@ void CPU_cycle(void) {
 			CPU_REGISTERS.PROGRAM_COUNTER.BYTE.HIGH += 1;
 		}
 
-		//****************** Handle interrupt vectors ******************
+		//****************** Handle IRQ and Jumps ******************
 
 	case 42 :
-		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW = Memory_access(fetch_op, 0xFFFE , 0);
+		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW = Memory_access(fetch_op, 0xFFFE, 0);			//FIX THIS AREA, STATE ORDER FUCKED!
 		break;
 
-	case 43 :
-		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.HIGH = Memory_access(fetch_op, 0xFFFF, 0);
+
+	case 44 :
+		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW = Memory_access(fetch_op, 0xFFFE , 0);			//TODO: detect different IRQ and corresponding vector!
+		break;
+
+
+	case 45 :
+		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.HIGH = Memory_access(fetch_op, 0xFFFF, 0);			//TODO: detect different IRQ and corresponding vector!
 		break;
 
 
@@ -375,7 +436,7 @@ void CPU_cycle(void) {
 		//Error 
 		break;
 	}
-
+	
 
 	/*
 	Check cpu_emu_data.state[cycle + 1] in order to determine current
@@ -398,760 +459,910 @@ void Instruction_lookup(unsigned char OP_CODE, cpu_emu_dat *cpu_emu_data) {
 	//used. It updateS the 'cpu_emu_data' struct with the  instruction 
 	//function pointer, as well as the addressing mode to be used.
 
-
 	switch (OP_CODE) {
 
 	case 0x6D:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &ADC;
 		break;
 
 	case 0x7D:
+		cpu_emu_data->state = read_execute_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &ADC;
 		break;
 
 	case 0x79:
+		cpu_emu_data->state = read_execute_absolute_y;
 		cpu_emu_data->address_mode = absolute_y;
 		cpu_emu_data->instruction_ptr = &ADC;
 		break;
 
 	case 0x69:
+		cpu_emu_data->state = read_execute_immediate;
 		cpu_emu_data->address_mode = immediate;
 		cpu_emu_data->instruction_ptr = &ADC;
 		break;
 
 	case 0x61:
+		cpu_emu_data->state = read_execute_indirect_x;
 		cpu_emu_data->address_mode = indexed_indirect_x;
 		cpu_emu_data->instruction_ptr = &ADC;
 		break;
 
 	case 0x71:
+		cpu_emu_data->state = read_execute_indirect_y;
 		cpu_emu_data->address_mode = indirect_indexed_y;
 		cpu_emu_data->instruction_ptr = &ADC;
 		break;
 
 	case 0x65:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &ADC;
 		break;
 
 	case 0x75:
+		cpu_emu_data->state = read_execute_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &ADC;
 		break;
 
 	case 0x2D:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &AND;
 		break;
 
 	case 0x3D:
+		cpu_emu_data->state = read_execute_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &AND;
 		break;
 
 	case 0x39:
+		cpu_emu_data->state = read_execute_absolute_y;
 		cpu_emu_data->address_mode = absolute_y;
 		cpu_emu_data->instruction_ptr = &AND;
 		break;
 
 	case 0x29:
+		cpu_emu_data->state = read_execute_immediate;
 		cpu_emu_data->address_mode = immediate;
 		cpu_emu_data->instruction_ptr = &AND;
 		break;
 
 	case 0x21:
+		cpu_emu_data->state = read_execute_indirect_x;
 		cpu_emu_data->address_mode = indexed_indirect_x;
 		cpu_emu_data->instruction_ptr = &AND;
 		break;
 
 	case 0x31:
+		cpu_emu_data->state = read_execute_indirect_y;
 		cpu_emu_data->address_mode = indirect_indexed_y;
 		cpu_emu_data->instruction_ptr = &AND;
 		break;
 
 	case 0x25:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &AND;
 		break;
 
 	case 0x35:
+		cpu_emu_data->state = read_execute_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &AND;
 		break;
 
 	case 0x0E:
+		cpu_emu_data->state = modify_write_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &ASL;
 		break;
 
 	case 0x1E:
+		cpu_emu_data->state = modify_write_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &ASL;
 		break;
 
 	case 0x0A:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = accumulator;
 		cpu_emu_data->instruction_ptr = &ASL;
 		break;
 
 	case 0x06:
+		cpu_emu_data->state = modify_write_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &ASL;
 		break;
 
 	case 0x16:
+		cpu_emu_data->state = modify_write_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &ASL;
 		break;
 
 	case 0x90:
+		cpu_emu_data->state = branch_operation;
 		cpu_emu_data->address_mode = relative;
 		cpu_emu_data->instruction_ptr = &BCC;
 		break;
 
 	case 0xB0:
+		cpu_emu_data->state = branch_operation;
 		cpu_emu_data->address_mode = relative;
 		cpu_emu_data->instruction_ptr = &BCS;
 		break;
 
 	case 0xF0:
+		cpu_emu_data->state = branch_operation;
 		cpu_emu_data->address_mode = relative;
 		cpu_emu_data->instruction_ptr = &BEQ;
 		break;
 
 	case 0x2C:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &BIT;
 		break;
 
 	case 0x24:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &BIT;
 		break;
 
 	case 0x30:
+		cpu_emu_data->state = branch_operation;
 		cpu_emu_data->address_mode = relative;
 		cpu_emu_data->instruction_ptr = &BMI;
 		break;
 
 	case 0xD0:
+		cpu_emu_data->state = branch_operation;
 		cpu_emu_data->address_mode = relative;
 		cpu_emu_data->instruction_ptr = &BNE;
 		break;
 
 	case 0x10:
+		cpu_emu_data->state = branch_operation;
 		cpu_emu_data->address_mode = relative;
 		cpu_emu_data->instruction_ptr = &BPL;
 		break;
 
 	case 0x00:
+		cpu_emu_data->state = break_operation_irq;
 		cpu_emu_data->address_mode = implied;
 		//cpu_emu_data->instruction_ptr = &BRK;
 		break;
 
 	case 0x50:
+		cpu_emu_data->state = branch_operation;
 		cpu_emu_data->address_mode = relative;
 		cpu_emu_data->instruction_ptr = &BVC;
 		break;
 
 	case 0x70:
+		cpu_emu_data->state = branch_operation;
 		cpu_emu_data->address_mode = relative;
 		cpu_emu_data->instruction_ptr = &BVS;
 		break;
 
 	case 0x18:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &CLC;
 		break;
 
 	case 0xD8:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &CLD;
 		break;
 
 	case 0x58:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &CLI;
 		break;
 
 	case 0xB8:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &CLV;
 		break;
 
 	case 0xCD:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &CMP;
 		break;
 
 	case 0xDD:
+		cpu_emu_data->state = read_execute_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &CMP;
 		break;
 
 	case 0xD9:
+		cpu_emu_data->state = read_execute_absolute_y;
 		cpu_emu_data->address_mode = absolute_y;
 		cpu_emu_data->instruction_ptr = &CMP;
 		break;
 
 	case 0xC9:
+		cpu_emu_data->state = read_execute_immediate;
 		cpu_emu_data->address_mode = immediate;
 		cpu_emu_data->instruction_ptr = &CMP;
 		break;
 
 	case 0xC1:
+		cpu_emu_data->state = read_execute_indirect_x;
 		cpu_emu_data->address_mode = indexed_indirect_x;
 		cpu_emu_data->instruction_ptr = &CMP;
 		break;
 
 	case 0xD1:
+		cpu_emu_data->state = read_execute_indirect_y;
 		cpu_emu_data->address_mode = indirect_indexed_y;
 		cpu_emu_data->instruction_ptr = &CMP;
 		break;
 
 	case 0xC5:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &CMP;
 		break;
 
 	case 0xD5:
+		cpu_emu_data->state = read_execute_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &CMP;
 		break;
 
 	case 0xEC:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &CPX;
 		break;
 
 	case 0xE0:
+		cpu_emu_data->state = read_execute_immediate;
 		cpu_emu_data->address_mode = immediate;
 		cpu_emu_data->instruction_ptr = &CPX;
 		break;
 
 	case 0xE4:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &CPX;
 		break;
 
 	case 0xCC:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &CPY;
 		break;
 
 	case 0xC0:
+		cpu_emu_data->state = read_execute_immediate;
 		cpu_emu_data->address_mode = immediate;
 		cpu_emu_data->instruction_ptr = &CPY;
 		break;
 
 	case 0xC4:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &CPY;
 		break;
 
 	case 0xCE:
+		cpu_emu_data->state = modify_write_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &DEC;
 		break;
 
 	case 0xDE:
+		cpu_emu_data->state = modify_write_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &DEC;
 		break;
 
 	case 0xC6:
+		cpu_emu_data->state = modify_write_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &DEC;
 		break;
 
 	case 0xD6:
+		cpu_emu_data->state = modify_write_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &DEC;
 		break;
 
 	case 0xCA:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &DEX;
 		break;
 
 	case 0x88:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &DEY;
 		break;
 
 	case 0x4D:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &EOR;
 		break;
 
 	case 0x5D:
+		cpu_emu_data->state = read_execute_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &EOR;
 		break;
 
 	case 0x59:
+		cpu_emu_data->state = read_execute_absolute_y;
 		cpu_emu_data->address_mode = absolute_y;
 		cpu_emu_data->instruction_ptr = &EOR;
 		break;
 
 	case 0x49:
+		cpu_emu_data->state = read_execute_immediate;
 		cpu_emu_data->address_mode = immediate;
 		cpu_emu_data->instruction_ptr = &EOR;
 		break;
 
 	case 0x41:
+		cpu_emu_data->state = read_execute_indirect_x;
 		cpu_emu_data->address_mode = indexed_indirect_x;
 		cpu_emu_data->instruction_ptr = &EOR;
 		break;
 
 	case 0x51:
+		cpu_emu_data->state = read_execute_indirect_y;
 		cpu_emu_data->address_mode = indirect_indexed_y;
 		cpu_emu_data->instruction_ptr = &EOR;
 		break;
 
 	case 0x45:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &EOR;
 		break;
 
 	case 0x55:
+		cpu_emu_data->state = read_execute_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &EOR;
 		break;
 
 	case 0xEE:
+		cpu_emu_data->state = modify_write_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &INC;
 		break;
 
 	case 0xFE:
+		cpu_emu_data->state = modify_write_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &INC;
 		break;
 
 	case 0xE6:
+		cpu_emu_data->state = modify_write_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &INC;
 		break;
 
 	case 0xF6:
+		cpu_emu_data->state = modify_write_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &INC;
 		break;
 
 	case 0xE8:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &INX;
 		break;
 
 	case 0xC8:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &INY;
 		break;
 
 	case 0x4C:
+		cpu_emu_data->state = jump_operation_absolute;
 		cpu_emu_data->address_mode = absolute;
 		//cpu_emu_data->instruction_ptr = &JMP;
 		break;
 
 	case 0x6C:
+		cpu_emu_data->state = jump_operation_indirect;
 		cpu_emu_data->address_mode = indirect;
 		//cpu_emu_data->instruction_ptr = &JMP;
 		break;
 
 	case 0x20:
+		cpu_emu_data->state = jump_to_subroutine;
 		cpu_emu_data->address_mode = absolute;
 		//cpu_emu_data->instruction_ptr = &JSR;
 		break;
 
 	case 0xAD:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &LDA;
 		break;
 
 	case 0xBD:
+		cpu_emu_data->state = read_execute_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &LDA;
 		break;
 
 	case 0xB9:
+		cpu_emu_data->state = read_execute_absolute_y;
 		cpu_emu_data->address_mode = absolute_y;
 		cpu_emu_data->instruction_ptr = &LDA;
 		break;
 
 	case 0xA9:
+		cpu_emu_data->state = read_execute_immediate;
 		cpu_emu_data->address_mode = immediate;
 		cpu_emu_data->instruction_ptr = &LDA;
 		break;
 
 	case 0xA1:
+		cpu_emu_data->state = read_execute_indirect_x;
 		cpu_emu_data->address_mode = indexed_indirect_x;
 		cpu_emu_data->instruction_ptr = &LDA;
 		break;
 
 	case 0xB1:
+		cpu_emu_data->state = read_execute_indirect_y;
 		cpu_emu_data->address_mode = indirect_indexed_y;
 		cpu_emu_data->instruction_ptr = &LDA;
 		break;
 
 	case 0xA5:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &LDA;
 		break;
 
 	case 0xB5:
+		cpu_emu_data->state = read_execute_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &LDA;
 		break;
 
 	case 0xAE:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &LDX;
 		break;
 
 	case 0xBE:
+		cpu_emu_data->state = read_execute_absolute_y;
 		cpu_emu_data->address_mode = absolute_y;
 		cpu_emu_data->instruction_ptr = &LDX;
 		break;
 
 	case 0xA2:
+		cpu_emu_data->state = read_execute_immediate;
 		cpu_emu_data->address_mode = immediate;
 		cpu_emu_data->instruction_ptr = &LDX;
 		break;
 
 	case 0xA6:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &LDX;
 		break;
 
 	case 0xB6:
+		cpu_emu_data->state = read_execute_zeropage_y;
 		cpu_emu_data->address_mode = zero_page_y;
 		cpu_emu_data->instruction_ptr = &LDX;
 		break;
 
 	case 0xAC:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &LDY;
 		break;
 
 	case 0xBC:
+		cpu_emu_data->state = read_execute_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &LDY;
 		break;
 
 	case 0xA0:
+		cpu_emu_data->state = read_execute_immediate;
 		cpu_emu_data->address_mode = immediate;
 		cpu_emu_data->instruction_ptr = &LDY;
 		break;
 
 	case 0xA4:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &LDY;
 		break;
 
 	case 0xB4:
+		cpu_emu_data->state = read_execute_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &LDY;
 		break;
 
 	case 0x4E:
+		cpu_emu_data->state = modify_write_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &LSR;
 		break;
 
 	case 0x5E:
+		cpu_emu_data->state = modify_write_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &LSR;
 		break;
 
 	case 0x4A:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = accumulator;
 		cpu_emu_data->instruction_ptr = &LSR;
 		break;
 
 	case 0x46:
+		cpu_emu_data->state = modify_write_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &LSR;
 		break;
 
 	case 0x56:
+		cpu_emu_data->state = modify_write_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &LSR;
 		break;
 
 	case 0xEA:
+		cpu_emu_data->state = nop_operation;
 		cpu_emu_data->address_mode = implied;
 		//cpu_emu_data->instruction_ptr = &NOP;
 		break;
 
 	case 0x0D:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &ORA;
 		break;
 
 	case 0x1D:
+		cpu_emu_data->state = read_execute_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &ORA;
 		break;
 
 	case 0x19:
+		cpu_emu_data->state = read_execute_absolute_y;
 		cpu_emu_data->address_mode = absolute_y;
 		cpu_emu_data->instruction_ptr = &ORA;
 		break;
 
 	case 0x09:
+		cpu_emu_data->state = read_execute_immediate;
 		cpu_emu_data->address_mode = immediate;
 		cpu_emu_data->instruction_ptr = &ORA;
 		break;
 
 	case 0x01:
+		cpu_emu_data->state = read_execute_indirect_x;
 		cpu_emu_data->address_mode = indexed_indirect_x;
 		cpu_emu_data->instruction_ptr = &ORA;
 		break;
 
 	case 0x11:
+		cpu_emu_data->state = read_execute_indirect_y;
 		cpu_emu_data->address_mode = indirect_indexed_y;
 		cpu_emu_data->instruction_ptr = &ORA;
 		break;
 
 	case 0x05:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &ORA;
 		break;
 
 	case 0x15:
+		cpu_emu_data->state = read_execute_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &ORA;
 		break;
 
 	case 0x48:
+		cpu_emu_data->state = push_operation_pha;
 		cpu_emu_data->address_mode = implied;
 		//cpu_emu_data->instruction_ptr = &PHA;
 		break;
 
 	case 0x08:
+		cpu_emu_data->state = push_operation_php;
 		cpu_emu_data->address_mode = implied;
 		//cpu_emu_data->instruction_ptr = &PHP;
 		break;
 
 	case 0x68:
+		cpu_emu_data->state = pull_operation_pla;
 		cpu_emu_data->address_mode = implied;
 		//cpu_emu_data->instruction_ptr = &PLA;
 		break;
 
 	case 0x28:
+		cpu_emu_data->state = pull_operation_plp;
 		cpu_emu_data->address_mode = implied;
 		//cpu_emu_data->instruction_ptr = &PLP;
 		break;
 
 	case 0x2A:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = accumulator;
 		cpu_emu_data->instruction_ptr = &ROL;
 		break;
 
 	case 0x2E:
+		cpu_emu_data->state = modify_write_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &ROL;
 		break;
 
 	case 0x3E:
+		cpu_emu_data->state = modify_write_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &ROL;
 		break;
 
 	case 0x26:
+		cpu_emu_data->state = modify_write_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &ROL;
 		break;
 
 	case 0x36:
+		cpu_emu_data->state = modify_write_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &ROL;
 		break;
 
 	case 0x6E:
+		cpu_emu_data->state = modify_write_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &ROR;
 		break;
 
 	case 0x7E:
+		cpu_emu_data->state = modify_write_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &ROR;
 		break;
 
 	case 0x6A:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = accumulator;
 		cpu_emu_data->instruction_ptr = &ROR;
 		break;
 
 	case 0x66:
+		cpu_emu_data->state = modify_write_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &ROR;
 		break;
 
 	case 0x76:
+		cpu_emu_data->state = modify_write_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &ROR;
 		break;
 
 	case 0x40:
+		cpu_emu_data->state = rtn_from_interrupt;
 		cpu_emu_data->address_mode = implied;
 		//cpu_emu_data->instruction_ptr = &RTI;
 		break;
 
 	case 0x60:
+		cpu_emu_data->state = rtn_from_subroutine;
 		cpu_emu_data->address_mode = implied;
 		//cpu_emu_data->instruction_ptr = &RTS;
 		break;
 
 	case 0xED:
+		cpu_emu_data->state = read_execute_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &SBC;
 		break;
 
 	case 0xFD:
+		cpu_emu_data->state = read_execute_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &SBC;
 		break;
 
 	case 0xF9:
+		cpu_emu_data->state = read_execute_absolute_y;
 		cpu_emu_data->address_mode = absolute_y;
 		cpu_emu_data->instruction_ptr = &SBC;
 		break;
 
 	case 0xE9:
+		cpu_emu_data->state = read_execute_immediate;
 		cpu_emu_data->address_mode = immediate;
 		cpu_emu_data->instruction_ptr = &SBC;
 		break;
 
 	case 0xE1:
+		cpu_emu_data->state = read_execute_indirect_x;
 		cpu_emu_data->address_mode = indexed_indirect_x;
 		cpu_emu_data->instruction_ptr = &SBC;
 		break;
 
 	case 0xF1:
+		cpu_emu_data->state = read_execute_indirect_y;
 		cpu_emu_data->address_mode = indirect_indexed_y;
 		cpu_emu_data->instruction_ptr = &SBC;
 		break;
 
 	case 0xE5:
+		cpu_emu_data->state = read_execute_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &SBC;
 		break;
 
 	case 0xF5:
+		cpu_emu_data->state = read_execute_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &SBC;
 		break;
 
 	case 0x38:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &SEC;
 		break;
 
 	case 0xF8:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &SED;
 		break;
 
 	case 0x78:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &SEI;
 		break;
 
 	case 0x8D:
+		cpu_emu_data->state = store_operation_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &STA;
 		break;
 
 	case 0x9D:
+		cpu_emu_data->state = store_operation_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
 		cpu_emu_data->instruction_ptr = &STA;
 		break;
 
 	case 0x99:
+		cpu_emu_data->state = store_operation_absolute_y;
 		cpu_emu_data->address_mode = absolute_y;
 		cpu_emu_data->instruction_ptr = &STA;
 		break;
 
 	case 0x81:
+		cpu_emu_data->state = store_operation_indirect_x;
 		cpu_emu_data->address_mode = indexed_indirect_x;
 		cpu_emu_data->instruction_ptr = &STA;
 		break;
 
 	case 0x91:
+		cpu_emu_data->state = store_operation_indirect_y;
 		cpu_emu_data->address_mode = indirect_indexed_y;
 		cpu_emu_data->instruction_ptr = &STA;
 		break;
 
 	case 0x85:
+		cpu_emu_data->state = store_operation_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &STA;
 		break;
 
 	case 0x95:
+		cpu_emu_data->state = store_operation_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &STA;
 		break;
 
 	case 0x8E:
+		cpu_emu_data->state = store_operation_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &STX;
 		break;
 
 	case 0x86:
+		cpu_emu_data->state = store_operation_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &STX;
 		break;
 
 	case 0x96:
+		cpu_emu_data->state = store_operation_zeropage_y;
 		cpu_emu_data->address_mode = zero_page_y;
 		cpu_emu_data->instruction_ptr = &STX;
 		break;
 
 	case 0x84:
+		cpu_emu_data->state = store_operation_zeropage;
 		cpu_emu_data->address_mode = zero_page;
 		cpu_emu_data->instruction_ptr = &STY;
 		break;
 
 	case 0x94:
+		cpu_emu_data->state = store_operation_zeropage_x;
 		cpu_emu_data->address_mode = zero_page_x;
 		cpu_emu_data->instruction_ptr = &STY;
 		break;
 
 	case 0x8C:
+		cpu_emu_data->state = store_operation_absolute;
 		cpu_emu_data->address_mode = absolute;
 		cpu_emu_data->instruction_ptr = &STY;
 		break;
 
 	case 0xAA:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &TAX;
 		break;
 
 	case 0xA8:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &TAY;
 		break;
 
 	case 0xBA:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &TSX;
 		break;
 
 	case 0x8A:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &TXA;
 		break;
 
 	case 0x9A:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &TXS;
 		break;
 
 	case 0x98:
+		cpu_emu_data->state = single_byte_intstruction;
 		cpu_emu_data->address_mode = implied;
 		cpu_emu_data->instruction_ptr = &TYA;
 		break;
