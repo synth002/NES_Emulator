@@ -12,7 +12,7 @@ unsigned char single_byte_intstruction[3]	 =  { 0, 3, 0xFF };
 //Read operations
 unsigned char read_execute_immediate[3]      =  { 0, 3, 0xFF };
 unsigned char read_execute_zeropage[4]       =  { 0, 4, 7, 0xFF };
-unsigned char read_execute_absolute[5]       =  { 0, 4, 5, 6, 0xFF };
+unsigned char read_execute_absolute[5]       =  { 0, 4, 5, 8, 0xFF };
 unsigned char read_execute_indirect_x[7]     =  { 0, 4, 1, 9, 12, 13, 0xFF };
 unsigned char read_execute_absolute_x[6]     =  { 0, 4, 5, 18, 18, 0xFF };			//Skip second 18 state if page crossed = false!
 unsigned char read_execute_absolute_y[6]     =  { 0, 4, 5, 19, 19, 0xFF };			//Skip second 19 state if page crossed = false!
@@ -37,19 +37,19 @@ unsigned char modify_write_absolute_x[8]	 =  { 0, 4, 5, 16, 13, 38, 38, 0xFF };
 unsigned char push_operation_php[4]			 = { 0, 2, 26, 0xFF };
 unsigned char push_operation_pha[4]			 = { 0, 2, 27, 0xFF };
 //Stack pull operations
-unsigned char pull_operation_plp[4]			 = { 0, 2, 30, 0xFF };
-unsigned char pull_operation_pla[4]			 = { 0, 2, 29, 0xFF };
+unsigned char pull_operation_plp[5]			 = { 0, 2, 28, 30, 0xFF };
+unsigned char pull_operation_pla[5]			 = { 0, 2, 28, 29, 0xFF };
 //Subroutine operations
 unsigned char jump_to_subroutine[7]			 = { 0, 4, 28, 24, 25, 6, 0xFF };
 unsigned char rtn_from_subroutine[7]		 = { 0, 2, 28, 31, 32, 2, 0xFF };
 //Break/interrupt operations
-unsigned char break_operation_irq[8]		 = { 0, 2, 24, 25, 26, 44, 45, 0xFF };
+unsigned char break_operation_irq[8]		 = { 0, 2, 24, 25, 26, 41, 42, 0xFF };
 unsigned char rtn_from_interrupt[7]			 = { 0, 2, 28, 30, 31, 32, 0xFF };
 //Jump operations
 unsigned char jump_operation_absolute[4]	 = { 0, 4, 6, 0xFF };
 unsigned char jump_operation_indirect[6]	 = { 0, 4, 5, 22, 23, 0xFF };
 //Branch operations
-unsigned char branch_operation[5]			 = { 0, 3, 41, 41, 0xFF};	//Only continute after 2nd state if branch_taken = true. Only continue after 3rd state if page_crossed = true. 
+unsigned char branch_operation[5]			 = { 0, 3, 40, 40, 0xFF};				//Only continute after 2nd state if branch_taken = true. Only continue after 3rd state if page_crossed = true. 
 //NOP operation 
 unsigned char nop_operation[3]				 = { 0, 2, 0xFF };
 
@@ -73,10 +73,26 @@ void Setup_CPU(void) {
 	CPU_REGISTERS.X_REG = 0;
 	CPU_REGISTERS.Y_REG = 0;
 	CPU_REGISTERS.ACC_REG = 0;
-	CPU_REGISTERS.CYCLE_COUNT = 0;
-	CPU_REGISTERS.STACK_POINTER = 0;
-	CPU_REGISTERS.CPU_STATUS_REG.REG = STATUS_REG_RESET;
-	CPU_REGISTERS.PROGRAM_COUNTER.REG = RESET_VECTOR_ADDR;
+	CPU_REGISTERS.RESET = 1;
+	CPU_REGISTERS.STACK_POINTER = 0xFD;
+	CPU_REGISTERS.CPU_STATUS_REG.REG = 0x34;
+	CPU_REGISTERS.PROGRAM_COUNTER.REG = 0xFFFC;
+}
+//******************************************************
+//******************************************************
+
+
+
+
+//******************************************************
+//********** Init CPU runtime attributes ***************
+void Init_attributes(cpu_emu_dat *cpu_emu_data) {
+
+	CPU_REGISTERS.RESET = 0;
+	cpu_emu_data->cycle = 0;
+	cpu_emu_data->opcode = 0;
+	cpu_emu_data->irq = no_irq;
+	cpu_emu_data->address_mode = implied;
 }
 //******************************************************
 //******************************************************
@@ -88,27 +104,29 @@ void Setup_CPU(void) {
 //*************** NES CPU STATE MACHINE **************************
 void CPU_cycle(void) {
 
-	static bool page_crossed = false;
-	static unsigned char state;
-	unsigned char opcode = 0;
 	cpu_emu_dat cpu_emu_data;
 
 
-	if (state == 0) {
-		cpu_emu_data.branch_taken = false;
-		cpu_emu_data.base_addr.reg = 0;
-		cpu_emu_data.indexed_addr.reg = 0;
-		cpu_emu_data.data = 0;
-		//if(addressing_mode != implied, accumulator){
-		//CPU_REGISTERS.PROGRAM_COUNTER.REG++;
-		//}
-		opcode = Fetch_opcode();
-		Instruction_lookup(opcode, &cpu_emu_data);
-		return;
+	if (CPU_REGISTERS.RESET) {
+		Init_attributes(&cpu_emu_data);
 	}
 
 
-	switch (cpu_emu_data.state[state]) {
+	if (cpu_emu_data.cycle == 0) {
+		cpu_emu_data.data = 0;
+		cpu_emu_data.base_addr.reg = 0;
+		cpu_emu_data.page_crossed = none;
+		cpu_emu_data.branch_taken = true;
+		cpu_emu_data.indexed_addr.reg = 0;
+		if( cpu_emu_data.address_mode != implied || accumulator ) {
+			CPU_REGISTERS.PROGRAM_COUNTER.REG++;
+		}
+		cpu_emu_data.opcode = Memory_access(fetch_op, CPU_REGISTERS.PROGRAM_COUNTER.REG, 0);
+		Instruction_lookup(&cpu_emu_data);
+	}
+
+
+	switch (cpu_emu_data.state[cpu_emu_data.cycle]) {
 
 
 	case 1 :	//Data read (data not used) - Base_addr LOW
@@ -207,36 +225,36 @@ void CPU_cycle(void) {
 
 
 	case 16 :	//For store ops - abs index X ******
-		page_crossed = Check_for_page_crossing(cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.X_REG);
+		cpu_emu_data.page_crossed = Check_for_page_crossing(cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.X_REG);
 		cpu_emu_data.indexed_addr.byte.low = cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.X_REG;
 		cpu_emu_data.indexed_addr.byte.high = cpu_emu_data.base_addr.byte.high;
 		cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
-		if (page_crossed == true) {
+		if (cpu_emu_data.page_crossed == true) {
 			cpu_emu_data.indexed_addr.byte.high += 1;
 		}
 
 
 	case 17 :	//For store ops - abs index Y *****
-		page_crossed = Check_for_page_crossing(cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.Y_REG);
+		cpu_emu_data.page_crossed = Check_for_page_crossing(cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.Y_REG);
 		cpu_emu_data.indexed_addr.byte.low = cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.Y_REG;
 		cpu_emu_data.indexed_addr.byte.high = cpu_emu_data.base_addr.byte.high;
 		cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
-		if (page_crossed == true) {
+		if (cpu_emu_data.page_crossed == true) {
 			cpu_emu_data.indexed_addr.byte.high += 1;
 		}
 
 
 	case 18 :	//Data read (with page crossing detection) - Absolute (indexed by X_REG)
-		if (page_crossed == false) {
-			page_crossed = Check_for_page_crossing(cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.X_REG);
+		if (cpu_emu_data.page_crossed == none) {
+			cpu_emu_data.page_crossed = Check_for_page_crossing(cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.X_REG);
 			cpu_emu_data.indexed_addr.byte.low = cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.X_REG;
 			cpu_emu_data.indexed_addr.byte.high = cpu_emu_data.base_addr.byte.high;
 			cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
-			if (page_crossed == false) {
+			if (cpu_emu_data.page_crossed == false) {
 				cpu_emu_data.instruction_ptr(&cpu_emu_data);
 			}
 		}
-		else {
+		else if (cpu_emu_data.page_crossed == true) {
 			cpu_emu_data.indexed_addr.byte.high += 1;
 			cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
 			cpu_emu_data.instruction_ptr(&cpu_emu_data);
@@ -244,16 +262,16 @@ void CPU_cycle(void) {
 
 
 	case 19:	//Data read (with page crossing detection) - Absolute (indexed by Y_REG)
-		if (page_crossed == false) {
-			page_crossed = Check_for_page_crossing(cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.Y_REG);
+		if (cpu_emu_data.page_crossed == none) {
+			cpu_emu_data.page_crossed = Check_for_page_crossing(cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.Y_REG);
 			cpu_emu_data.indexed_addr.byte.low = cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.Y_REG;
 			cpu_emu_data.indexed_addr.byte.high = cpu_emu_data.base_addr.byte.high;
 			cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
-			if (page_crossed == false) {
+			if (cpu_emu_data.page_crossed == false) {
 				cpu_emu_data.instruction_ptr(&cpu_emu_data);
 			}
 		}
-		else {
+		else if (cpu_emu_data.page_crossed == true) {
 			cpu_emu_data.indexed_addr.byte.high += 1;
 			cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
 			cpu_emu_data.instruction_ptr(&cpu_emu_data);
@@ -262,15 +280,15 @@ void CPU_cycle(void) {
 
 
 	case 20 :	//Data read (with page crossing detection) - Indirect  (indexed by Y_REG)
-		if (page_crossed == false) {
-			page_crossed = Check_for_page_crossing(cpu_emu_data.indexed_addr.byte.low + CPU_REGISTERS.Y_REG);
+		if (cpu_emu_data.page_crossed == none) {
+			cpu_emu_data.page_crossed = Check_for_page_crossing(cpu_emu_data.indexed_addr.byte.low + CPU_REGISTERS.Y_REG);
 			cpu_emu_data.indexed_addr.byte.low += CPU_REGISTERS.Y_REG;
 			cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
-			if (page_crossed == false) {
+			if (cpu_emu_data.page_crossed == false) {
 				cpu_emu_data.instruction_ptr(&cpu_emu_data);
 			}
 		}
-		else {
+		else  if (cpu_emu_data.page_crossed == true) {
 			cpu_emu_data.indexed_addr.byte.high += 1;
 			cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
 			cpu_emu_data.instruction_ptr(&cpu_emu_data);
@@ -279,10 +297,10 @@ void CPU_cycle(void) {
 
 
 	case 21:	//Data read (with page crossing detection) - FOR WRITES - Indirect  (indexed by Y_REG)
-		page_crossed = Check_for_page_crossing(cpu_emu_data.indexed_addr.byte.low + CPU_REGISTERS.Y_REG);
+		cpu_emu_data.page_crossed = Check_for_page_crossing(cpu_emu_data.indexed_addr.byte.low + CPU_REGISTERS.Y_REG);
 		cpu_emu_data.indexed_addr.byte.low += CPU_REGISTERS.Y_REG;
 		cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
-		if (page_crossed == true) {
+		if (cpu_emu_data.page_crossed == true) {
 			cpu_emu_data.indexed_addr.byte.high += 1;
 		}
 		break;
@@ -294,11 +312,10 @@ void CPU_cycle(void) {
 
 
 	case 23:	//Absolute indirect + 1 (for JMP)
-		cpu_emu_data.base_addr.reg++;
+		cpu_emu_data.base_addr.byte.low++;
 		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.HIGH = Memory_access(fetch_op, cpu_emu_data.base_addr.reg, 0);
 		CPU_REGISTERS.PROGRAM_COUNTER.REG--;
 		break;
-
 
 		//******************************** Stack pointer operations ********************************
 
@@ -396,39 +413,27 @@ void CPU_cycle(void) {
 		Memory_access(write_op, cpu_emu_data.indexed_addr.reg, cpu_emu_data.data);
 		break;
 
-
-	case 40:	//STORE - Indirect indexed Y (STA)
-		cpu_emu_data.instruction_ptr(&cpu_emu_data);
-		Memory_access(write_op, cpu_emu_data.indexed_addr.reg, cpu_emu_data.data);			//DUPLICATE OF PREVIOUS
-		break;
-	
-
 		//******************* Handle branching **************************
 
-	case 41:	
-		if (page_crossed == false) {
+	case 40 :	
+		if (cpu_emu_data.page_crossed == none) {
 			CPU_REGISTERS.PROGRAM_COUNTER.REG++;
-			page_crossed = Check_for_page_crossing(CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW + cpu_emu_data.data);
+			cpu_emu_data.page_crossed = Check_for_page_crossing(CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW + cpu_emu_data.data);
 			CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW += cpu_emu_data.data;
 		}
-		else {
+		else if (cpu_emu_data.page_crossed == true) {
 			CPU_REGISTERS.PROGRAM_COUNTER.BYTE.HIGH += 1;
 		}
 
-		//****************** Handle IRQ and Jumps ******************
+		//********************* Handle IRQ ******************************]
+
+	case 41 :
+		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW = Memory_access(fetch_op, 0xFFFE , 0);			//TODO: (BRK) detect different IRQ and corresponding vector!
+		break;
+
 
 	case 42 :
-		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW = Memory_access(fetch_op, 0xFFFE, 0);			//FIX THIS AREA, STATE ORDER FUCKED!
-		break;
-
-
-	case 44 :
-		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW = Memory_access(fetch_op, 0xFFFE , 0);			//TODO: detect different IRQ and corresponding vector!
-		break;
-
-
-	case 45 :
-		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.HIGH = Memory_access(fetch_op, 0xFFFF, 0);			//TODO: detect different IRQ and corresponding vector!
+		CPU_REGISTERS.PROGRAM_COUNTER.BYTE.HIGH = Memory_access(fetch_op, 0xFFFF, 0);			//TODO: (BRK) detect different IRQ and corresponding vector!
 		break;
 
 
@@ -438,11 +443,18 @@ void CPU_cycle(void) {
 	}
 	
 
-	/*
-	Check cpu_emu_data.state[cycle + 1] in order to determine current
-	cycle withing operation, as well as end of instruction
-	*/
+	//Increment cycle
+	cpu_emu_data.cycle++;
 
+	if (cpu_emu_data.page_crossed == false)  {
+		if (cpu_emu_data.state[cpu_emu_data.cycle - 1] == cpu_emu_data.state[cpu_emu_data.cycle]) {
+			cpu_emu_data.cycle++;
+		}
+	}
+
+	if (cpu_emu_data.state[cpu_emu_data.cycle] == 0xFF || cpu_emu_data.branch_taken == false) {
+		cpu_emu_data.cycle = 0;
+	}
 }
 //****************************************************************
 //****************************************************************
@@ -452,14 +464,14 @@ void CPU_cycle(void) {
 
 //********************************************************************************
 //************************ DECODE OPCODE FUNCTION ********************************
-void Instruction_lookup(unsigned char OP_CODE, cpu_emu_dat *cpu_emu_data) {
+void Instruction_lookup(cpu_emu_dat *cpu_emu_data) {
 
 	//This function decodes the latest instruction opcode fetched,
 	//it identifies the instruction - as well as the addressing mode
 	//used. It updateS the 'cpu_emu_data' struct with the  instruction 
 	//function pointer, as well as the addressing mode to be used.
 
-	switch (OP_CODE) {
+	switch (cpu_emu_data->opcode) {
 
 	case 0x6D:
 		cpu_emu_data->state = read_execute_absolute;
@@ -1115,12 +1127,6 @@ void Instruction_lookup(unsigned char OP_CODE, cpu_emu_dat *cpu_emu_data) {
 		//cpu_emu_data->instruction_ptr = &PLP;
 		break;
 
-	case 0x2A:
-		cpu_emu_data->state = single_byte_intstruction;
-		cpu_emu_data->address_mode = accumulator;
-		cpu_emu_data->instruction_ptr = &ROL;
-		break;
-
 	case 0x2E:
 		cpu_emu_data->state = modify_write_absolute;
 		cpu_emu_data->address_mode = absolute;
@@ -1130,6 +1136,12 @@ void Instruction_lookup(unsigned char OP_CODE, cpu_emu_dat *cpu_emu_data) {
 	case 0x3E:
 		cpu_emu_data->state = modify_write_absolute_x;
 		cpu_emu_data->address_mode = absolute_x;
+		cpu_emu_data->instruction_ptr = &ROL;
+		break;
+
+	case 0x2A:
+		cpu_emu_data->state = single_byte_intstruction;
+		cpu_emu_data->address_mode = accumulator;
 		cpu_emu_data->instruction_ptr = &ROL;
 		break;
 

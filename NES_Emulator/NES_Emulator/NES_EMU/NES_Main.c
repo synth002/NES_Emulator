@@ -62,16 +62,6 @@ unsigned char Setup_emulator(char *ROM_header) {
 	ROM_DATA.prg_ram_size   = ROM_header[7];
 
 
-	TESTER test;
-	test.reg = 0;
-
-	for (unsigned short a = 0; a <= 300; a++) {
-		test.byte.low++;
-		printf("test.byte.low = %d\n", test.byte.low);
-		printf("test.reg = %d\n", test.reg);
-	}
-
-
 
 	/*
 	//***** For testing purposes only! ******************
@@ -104,7 +94,7 @@ unsigned char Setup_emulator(char *ROM_header) {
 	ROM_DATA.mapper_ptr();
 
 
-	//Setup_CPU();
+	Setup_CPU();
 	//Setup_PPU();
 	//Setup_APU();
 
@@ -115,7 +105,7 @@ unsigned char Setup_emulator(char *ROM_header) {
 
 
 void Emulator_action_tick(void) {
-	//CPU_cycle();
+	CPU_cycle();
 	//PPU_cycle();
 	//APU_cycle();
 };

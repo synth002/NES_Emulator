@@ -7,18 +7,12 @@
 */
 
 
-
 //**** Shared globals ****
 extern CPU_registers CPU_REGISTERS;
 extern unsigned char NES_MEMORY[65536];
 extern ROM_data		 ROM_DATA;
 
 
-bool Check_for_page_crossing(unsigned short value) {
-
-	if (value > 0xFF) return true;
-	return false;
-}
 
 
 unsigned char Memory_access(unsigned char rw, unsigned short memory_address, unsigned char data) {
@@ -67,33 +61,11 @@ unsigned char Memory_access(unsigned char rw, unsigned short memory_address, uns
 }
 
 
+bool Check_for_page_crossing(unsigned short value) {
 
-
-
-
-unsigned char Fetch_opcode(void) {		//Needs to be sorted out to tie in with 'Acces_nes_memory' function
-
-
-	//This function simply returns a byte from memory,
-	//the memory address is provided by the program counter
-	return NES_MEMORY[CPU_REGISTERS.PROGRAM_COUNTER.REG];
-}	
-
-
-
-unsigned char Fetch_data(unsigned short addr) {		//Needs to be sorted out to tie in with 'Acces_nes_memory' function
-
-	return NES_MEMORY[addr];
+	if (value > 0xFF) return true;
+	return false;
 }
-
-
-
-
-void Write_data(unsigned short addr, unsigned char data) {		//Needs to be sorted out to tie in with 'Acces_nes_memory' function
-
-
-}
-
 
 
 void Update_overflow_flag(unsigned char acc, unsigned char val) {

@@ -30,8 +30,16 @@ typedef enum
 typedef enum
 {
 	false = 0,
-	true  = 1
+	true  = 1,
+	none  = 2
 }bool;
+
+
+typedef enum
+{
+	no_irq, 
+	reset
+} interrupts;
 
 
 typedef enum
@@ -48,8 +56,7 @@ typedef enum
 	accumulator,
 	relative,
 	implied,
-	indirect,
-	none
+	indirect
 }addr_mode;
 
 
@@ -123,15 +130,18 @@ typedef struct {
 
 //****Runtime data****
 typedef struct {
-	bool branch_taken;
+	
+	unsigned char cycle;
 	unsigned char opcode;
-	addr_mode address_mode;
-	void(*instruction_ptr)(cpu_emu_dat);
-	unsigned char cylce_counter;
+	unsigned char irq;
 	unsigned char data;
 	unsigned char *state;
+	bool branch_taken;
+	bool page_crossed;
+	addr_mode address_mode;
 	address_value base_addr;
 	address_value indexed_addr;
+	void(*instruction_ptr)(cpu_emu_dat);
 }cpu_emu_dat;
 
 
@@ -166,7 +176,7 @@ typedef struct {
 	program_counter	PROGRAM_COUNTER;	//CPU program counter register
 	status_reg		CPU_STATUS_REG;	    //CPU status register
 	//Unoffical!
-	unsigned int	CYCLE_COUNT;		//cycle counter - may get removed!
+	unsigned int	RESET;				//Reset event on true
 } CPU_registers;
 
 
@@ -177,11 +187,19 @@ void Get_mapper_pointer(void);
 void Mapper_0(void);
 
 //Local function prototypes
-void Instruction_lookup(unsigned char OP_CODE, cpu_emu_dat *cpu_emu_data);
+void Init_attributes(cpu_emu_dat *cpu_emu_data);
+void Instruction_lookup(cpu_emu_dat *cpu_emu_data);
 
 //External function prototypes
-extern void Update_negative_flag(unsigned char val);
+
+extern void Setup_CPU(void);
+extern void CPU_cycle(void);
+
 extern void Update_zero_flag(unsigned char val);
+extern void Update_negative_flag(unsigned char val);
+extern bool Check_for_page_crossing(unsigned short value);
+extern void Update_overflow_flag(unsigned char acc, unsigned char val);
+extern unsigned char Memory_access(unsigned char rw, unsigned short addr, unsigned char data);
 
 extern void Set_negative_flag(void);
 extern void Set_zero_flag(void);
@@ -208,12 +226,10 @@ extern unsigned char Check_break_flag(void);
 extern unsigned char Check_overflow_flag(void);
 
 
-extern unsigned char Memory_access(unsigned char rw, unsigned short addr, unsigned char data);
 
 
-extern bool Check_for_page_crossing(unsigned short value);
-extern unsigned char Fetch_opcode(void);
-extern unsigned char Fetch_data(unsigned short addr);
+
+
 
 
 extern void ADC(cpu_emu_dat *cpu_emu_data);
