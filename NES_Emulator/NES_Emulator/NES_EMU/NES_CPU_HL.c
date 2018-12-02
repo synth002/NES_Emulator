@@ -76,7 +76,8 @@ void Setup_CPU(void) {
 	CPU_REGISTERS.RESET = 1;
 	CPU_REGISTERS.STACK_POINTER = 0xFD;
 	CPU_REGISTERS.CPU_STATUS_REG.REG = 0x34;
-	CPU_REGISTERS.PROGRAM_COUNTER.REG = 0xFFFC;
+	CPU_REGISTERS.PROGRAM_COUNTER.BYTE.LOW = 0x00;
+	CPU_REGISTERS.PROGRAM_COUNTER.BYTE.HIGH = 0xC0;
 }
 //******************************************************
 //******************************************************
@@ -93,6 +94,12 @@ void Init_attributes(cpu_emu_dat *cpu_emu_data) {
 	cpu_emu_data->opcode = 0;
 	cpu_emu_data->irq = no_irq;
 	cpu_emu_data->address_mode = implied;
+	cpu_emu_data->data = 0;
+	cpu_emu_data->base_addr.reg = 0;
+	cpu_emu_data->page_crossed = none;
+	cpu_emu_data->branch_taken = true;
+	cpu_emu_data->indexed_addr.reg = 0;
+	cpu_emu_data->state = 0;
 }
 //******************************************************
 //******************************************************
@@ -104,10 +111,12 @@ void Init_attributes(cpu_emu_dat *cpu_emu_data) {
 //*************** NES CPU STATE MACHINE **************************
 void CPU_cycle(void) {
 
-	cpu_emu_dat cpu_emu_data;
+	static cpu_emu_dat cpu_emu_data;
+
+	printf("stuff happening!");
 
 
-	if (CPU_REGISTERS.RESET) {
+	if (CPU_REGISTERS.RESET > 0) {
 		Init_attributes(&cpu_emu_data);
 	}
 
@@ -118,7 +127,7 @@ void CPU_cycle(void) {
 		cpu_emu_data.page_crossed = none;
 		cpu_emu_data.branch_taken = true;
 		cpu_emu_data.indexed_addr.reg = 0;
-		if( cpu_emu_data.address_mode != implied || accumulator ) {
+		if( (cpu_emu_data.address_mode != implied) && (cpu_emu_data.address_mode != accumulator) ) {
 			CPU_REGISTERS.PROGRAM_COUNTER.REG++;
 		}
 		cpu_emu_data.opcode = Memory_access(fetch_op, CPU_REGISTERS.PROGRAM_COUNTER.REG, 0);

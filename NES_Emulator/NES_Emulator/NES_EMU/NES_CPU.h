@@ -195,12 +195,13 @@ void Instruction_lookup(cpu_emu_dat *cpu_emu_data);
 extern void Setup_CPU(void);
 extern void CPU_cycle(void);
 
+//CPU low level function prototypes
 extern void Update_zero_flag(unsigned char val);
 extern void Update_negative_flag(unsigned char val);
 extern bool Check_for_page_crossing(unsigned short value);
 extern void Update_overflow_flag(unsigned char acc, unsigned char val);
 extern unsigned char Memory_access(unsigned char rw, unsigned short addr, unsigned char data);
-
+//Status reg flag functions
 extern void Set_negative_flag(void);
 extern void Set_zero_flag(void);
 extern void Set_carry_flag(void);
@@ -215,8 +216,6 @@ extern void Clear_interrupt_flag(void);
 extern void Clear_decimal_flag(void);
 extern void Clear_break_flag(void);
 extern void Clear_overflow_flag(void);
-
-
 extern unsigned char Check_negative_flag(void);
 extern unsigned char Check_zero_flag(void);
 extern unsigned char Check_carry_flag(void);
@@ -226,12 +225,7 @@ extern unsigned char Check_break_flag(void);
 extern unsigned char Check_overflow_flag(void);
 
 
-
-
-
-
-
-
+//Instruction exection functions
 extern void ADC(cpu_emu_dat *cpu_emu_data);
 extern void AND(cpu_emu_dat *cpu_emu_data);
 extern void ASL(cpu_emu_dat *cpu_emu_data);

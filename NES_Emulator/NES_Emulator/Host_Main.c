@@ -76,7 +76,10 @@ int main(void) {
 
 
 
-	while (1) { }
+	while (1) { 
+	
+		Emulator_action_tick();
+	}
 	fclose(ROM_FP);
 
 	return 0;
