@@ -1,5 +1,8 @@
 
+
+#include <stdio.h>
 #include "NES_CPU.h"
+
 
 
 /*
@@ -11,11 +14,11 @@
 extern CPU_registers CPU_REGISTERS;
 extern unsigned char NES_MEMORY[65536];
 extern ROM_data		 ROM_DATA;
+extern FILE *CPU_LOG;
 
 
 
-
-unsigned char Memory_access(unsigned char rw, unsigned short memory_address, unsigned char data) {
+unsigned char Memory_access(unsigned char operation, unsigned short memory_address, unsigned char data) {
 
 	/*
 
@@ -36,26 +39,47 @@ unsigned char Memory_access(unsigned char rw, unsigned short memory_address, uns
 	0x4020 - 0xFFFF		0xBFE0		Cartridge space : PRG ROM, PRG RAM, and mapper registers.
 	*/
 
+	static unsigned short prev_fetch_addr = 0;
+	if (operation == fetch_op) {
+		prev_fetch_addr = memory_address;
+	}
+	else if (operation == fetch_previous) {
+		memory_address = prev_fetch_addr;
+	}
+
+
 	unsigned char fetched_byte = 0;
 
 	//Apply mapper mask
 	memory_address &= ROM_DATA.mapper_mask;
 
-	//Lines 11, 12 of CPU address bus are always tied low
-	memory_address &= ~(0x03 << 11);
+	//Handle CPU memory mirroring
+	if (memory_address < 0x2000) {
+		memory_address &= ~(0x03 << 11);
+	}
 
 	//Mirror through 0x2000 - 0x2007 address range
-	if ((memory_address & (0x07 << 13)) == 0x01) {
+	if (memory_address < 0x4000 && memory_address > 0x1FFF) {
 		memory_address &= ~(0xFF << 3);
 	}
 
 	//Perform read/write operation
-	if (rw == fetch_op) {
+	if (operation == fetch_op) {
 		return NES_MEMORY[memory_address];
 	}
-	else {
+	else if (operation == write_op) {
 		NES_MEMORY[memory_address] = data;
 	}
+	else if (operation == fetch_previous) {
+		return NES_MEMORY[memory_address];
+	}
+	
+	if ((NES_MEMORY[0X02] != 0) || (NES_MEMORY[0X03] != 0)) {
+		printf("0x02 = 0x%.2X\n", NES_MEMORY[0X02]);
+		printf("0x03 = 0x%.2X\n", NES_MEMORY[0X03]);
+		getchar();
+	}
+
 
 	return 0;
 }
@@ -78,7 +102,7 @@ void Update_overflow_flag(unsigned char acc, unsigned char val) {
 
 void Update_negative_flag(unsigned char val) {
 
-	if (val && (1 << 7)) {
+	if (val & (1 << 7)) {
 		Set_negative_flag();
 	}
 	else {
@@ -105,43 +129,37 @@ void Update_zero_flag(unsigned char val) {
 void Set_negative_flag(void) {
 
 	//This function sets the negative flag in CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.N = 1;
+	CPU_REGISTERS.S_REG.BIT.N = 1;
 }
 
 void Set_zero_flag(void) {
 
 	//This function sets the zero flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.Z = 1;
+	CPU_REGISTERS.S_REG.BIT.Z = 1;
 }
 
 void Set_carry_flag(void) {
 
 	//This function sets the carry flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.C = 1;
+	CPU_REGISTERS.S_REG.BIT.C = 1;
 }
 
 void Set_interrupt_flag(void) {
 
 	//This function sets the IRQ disable flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.I = 1;
+	CPU_REGISTERS.S_REG.BIT.I = 1;
 }
 
 void Set_decimal_flag(void) {
 
 	//This function sets the decimal mode flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.D = 1;
-}
-
-void Set_break_flag(void) {
-
-	//This function sets the break flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.B = 1;
+	CPU_REGISTERS.S_REG.BIT.D = 1;
 }
 
 void Set_overflow_flag(void) {
 
 	//This function sets the overflow flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.V = 1;
+	CPU_REGISTERS.S_REG.BIT.V = 1;
 }
 //******************************************************
 //******************************************************
@@ -154,43 +172,44 @@ void Set_overflow_flag(void) {
 void Clear_negative_flag(void) {
 
 	//This function sets the negative flag in CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.N = 0;
+	CPU_REGISTERS.S_REG.BIT.N = 0;
 }
 
 void Clear_zero_flag(void) {
 
 	//This function sets the zero flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.Z = 0;
+	CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 void Clear_carry_flag(void) {
 
 	//This function sets the carry flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.C = 0;
+	CPU_REGISTERS.S_REG.BIT.C = 0;
 }
 
 void Clear_interrupt_flag(void) {
 
 	//This function sets the IRQ disable flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.I = 0;
+	CPU_REGISTERS.S_REG.BIT.I = 0;
 }
 
 void Clear_decimal_flag(void) {
 
 	//This function sets the decimal mode flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.D = 0;
+	CPU_REGISTERS.S_REG.BIT.D = 0;
 }
 
 void Clear_break_flag(void) {
 
 	//This function sets the break flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.B = 0;
+	CPU_REGISTERS.S_REG.BIT.BL = 0;
+	CPU_REGISTERS.S_REG.BIT.BH = 0;
 }
 
 void Clear_overflow_flag(void) {
 
 	//This function sets the overflow flag in the CPU status register
-	CPU_REGISTERS.CPU_STATUS_REG.BIT.V = 0;
+	CPU_REGISTERS.S_REG.BIT.V = 0;
 }
 //******************************************************
 //******************************************************
@@ -204,49 +223,49 @@ unsigned char Check_negative_flag(void) {
 
 	//This function returns the value of the 
 	//negative flag in CPU status register
-	return CPU_REGISTERS.CPU_STATUS_REG.BIT.N;
+	return CPU_REGISTERS.S_REG.BIT.N;
 }
 
 unsigned char Check_zero_flag(void) {
 
 	//This function returns the value of the 
 	//zero flag in the CPU status register
-	return CPU_REGISTERS.CPU_STATUS_REG.BIT.Z;
+	return CPU_REGISTERS.S_REG.BIT.Z;
 }
 
 unsigned char Check_carry_flag(void) {
 
 	//This function returns the value of the 
 	//carry flag in the CPU status register
-	return CPU_REGISTERS.CPU_STATUS_REG.BIT.C;
+	return CPU_REGISTERS.S_REG.BIT.C;
 }
 
 unsigned char Check_interrupt_flag(void) {
 
 	//This funtion returns the value of the 
 	//interrupt disable flag in the CPU status register
-	return CPU_REGISTERS.CPU_STATUS_REG.BIT.I;
+	return CPU_REGISTERS.S_REG.BIT.I;
 }
 
 unsigned char Check_decimal_flag(void) {
 
 	//This function returns the value of the 
 	//decimal mode flag in the CPU status register
-	return CPU_REGISTERS.CPU_STATUS_REG.BIT.D;
+	return CPU_REGISTERS.S_REG.BIT.D;
 }
 
 unsigned char Check_break_flag(void) {
 
 	//This function returns the value of the 
 	//break command flag in the CPU status register
-	return CPU_REGISTERS.CPU_STATUS_REG.BIT.B;
+	return CPU_REGISTERS.S_REG.REG &= 0x30;
 }
 
 unsigned char Check_overflow_flag(void) {
 
 	//This function returns the value of the
 	//overflow flag in the CPU status register
-	return CPU_REGISTERS.CPU_STATUS_REG.BIT.V;
+	return CPU_REGISTERS.S_REG.BIT.V;
 }
 //****************************************************************
 //****************************************************************

@@ -1,5 +1,5 @@
 #pragma once
-
+#include "NES.h"
 
 /*
 	This header should contain definitions and function
@@ -23,7 +23,8 @@
 typedef enum
 {
 	fetch_op,
-	write_op
+	write_op,
+	fetch_previous
 }rw;
 
 
@@ -128,6 +129,11 @@ typedef struct {
 
 
 
+
+
+
+
+
 //****Runtime data****
 typedef struct {
 	
@@ -142,6 +148,13 @@ typedef struct {
 	address_value base_addr;
 	address_value indexed_addr;
 	void(*instruction_ptr)(cpu_emu_dat);
+#ifdef LOGGING_ENABLED
+	char log_string[200];
+	char addr_string[20];
+	char inst_string[4];
+	unsigned char F1, F2, F3;
+	unsigned short PC;
+#endif
 }cpu_emu_dat;
 
 
@@ -153,13 +166,14 @@ typedef union
 	unsigned REG;
 	struct
 	{
-		unsigned char C : 1;			//Carry flag (bit 0)
-		unsigned char Z : 1;			//Zero flag
-		unsigned char I : 1;			//IRQ disabe flag
-		unsigned char D : 1;			//Decimal flag (Not used)
-		unsigned char B : 2;			//Break flag
-		unsigned char V : 1;			//Overflow flag
-		unsigned char N : 1;			//Negative flag
+		unsigned char C  : 1;			//Carry flag (bit 0)
+		unsigned char Z  : 1;			//Zero flag
+		unsigned char I  : 1;			//IRQ disabe flag
+		unsigned char D  : 1;			//Decimal flag (Not used)
+		unsigned char BL : 1;			//B flag low
+		unsigned char BH : 1;			//B flag high
+		unsigned char V  : 1;			//Overflow flag
+		unsigned char N  : 1;			//Negative flag
 
 	} BIT;
 } status_reg;
@@ -172,9 +186,9 @@ typedef struct {
 	unsigned char	ACC_REG;			//Accumulator register
 	unsigned char	X_REG;				//CPU index register X
 	unsigned char	Y_REG;				//CPU index register Y
-	unsigned char	STACK_POINTER;		//CPU stack pointer register (descending stack)
-	program_counter	PROGRAM_COUNTER;	//CPU program counter register
-	status_reg		CPU_STATUS_REG;	    //CPU status register
+	unsigned char	SP;					//CPU stack pointer register (descending stack)
+	program_counter	PC;					//CPU program counter register
+	status_reg		S_REG;				//CPU status register
 	//Unoffical!
 	unsigned int	RESET;				//Reset event on true
 } CPU_registers;
@@ -200,14 +214,13 @@ extern void Update_zero_flag(unsigned char val);
 extern void Update_negative_flag(unsigned char val);
 extern bool Check_for_page_crossing(unsigned short value);
 extern void Update_overflow_flag(unsigned char acc, unsigned char val);
-extern unsigned char Memory_access(unsigned char rw, unsigned short addr, unsigned char data);
+extern unsigned char Memory_access(unsigned char operation, unsigned short addr, unsigned char data);
 //Status reg flag functions
 extern void Set_negative_flag(void);
 extern void Set_zero_flag(void);
 extern void Set_carry_flag(void);
 extern void Set_interrupt_flag(void);
 extern void Set_decimal_flag(void);
-extern void Set_break_flag(void);
 extern void Set_overflow_flag(void);
 extern void Clear_negative_flag(void);
 extern void Clear_zero_flag(void);

@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include "NES_EMU\NES.h"
 
-#define NES_HEADER_LEN  0x0F
+
 FILE *ROM_FP;
+FILE *CPU_LOG_TXT;
+FILE *CPU_LOG_CSV;
 
 
 
@@ -39,6 +41,41 @@ void Grab_rom_data(unsigned char *NES_MEMORY, unsigned int write_address, unsign
 
 
 
+#ifdef LOGGING_ENABLED
+void Update_txt_log(char *log_string) {
+
+	//This function is called by the emulator 
+	//to update verbsose txt logging, if enabled
+	static unsigned short a = 0;
+	if (a < 600) a++;
+
+	fputs(log_string, CPU_LOG_TXT);
+	if(a == 650) {
+		fclose(CPU_LOG_TXT);
+	}
+}
+#endif
+
+
+
+
+#ifdef LOGGING_ENABLED
+void Update_csv_log(char *log_string) {
+
+	//This function is called by the emulator 
+	//to update csv logging, if enabled
+	static unsigned short a = 0;
+	if (a < 600) a++;
+
+	fputs(log_string, CPU_LOG_CSV);
+	if (a == 650) {
+		fclose(CPU_LOG_CSV);
+	}
+}
+#endif
+
+
+
 
 
 
@@ -46,7 +83,7 @@ void Grab_rom_data(unsigned char *NES_MEMORY, unsigned int write_address, unsign
 int main(void) {
 
 
-	char ROM_header[NES_HEADER_LEN];
+	char ROM_header[0x0F];
 
 
 	//Open NES ROM file for reading
@@ -57,12 +94,10 @@ int main(void) {
 	
 	
 	//Get ROM header data
-	for (unsigned char a = 0; a <= NES_HEADER_LEN - 1; a++) {
+	for (unsigned char a = 0; a <= 0x0F - 1; a++) {
 		ROM_header[a] = fgetc(ROM_FP);
 		if( a == 2) 	fseek(ROM_FP, 4, SEEK_SET);
 	}
-
-
 
 
 
@@ -75,12 +110,28 @@ int main(void) {
 	}
 
 
+#ifdef LOGGING_ENABLED
+	CPU_LOG_TXT = fopen("CPU_LOG_TXT.txt", "w");
+	if (CPU_LOG_TXT == NULL) {
+		printf("Error creating log file");
+	}
+
+	CPU_LOG_CSV = fopen("CPU_LOG_CSV.csv", "w");
+	if (CPU_LOG_CSV == NULL) {
+		printf("Error creating log file");
+	}
+#endif
+	
+
 
 	while (1) { 
-	
+
+		
 		Emulator_action_tick();
 	}
+
 	fclose(ROM_FP);
+	fclose(CPU_LOG_TXT);
 
 	return 0;
 }
