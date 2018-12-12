@@ -44,7 +44,7 @@ unsigned char pull_operation_plp[5]			 = { 0, 2, 28, 30, 0xFF };
 unsigned char pull_operation_pla[5]			 = { 0, 2, 28, 29, 0xFF };
 //Subroutine operations
 unsigned char jump_to_subroutine[7]			 = { 0, 4, 28, 24, 25, 6, 0xFF };
-unsigned char rtn_from_subroutine[7]		 = { 0, 2, 28, 31, 32, 3, 0xFF };
+unsigned char rtn_from_subroutine[7]		 = { 0, 2, 28, 31, 32, 2, 0xFF };
 //Break/interrupt operations
 unsigned char break_operation_irq[8]		 = { 0, 2, 24, 25, 26, 41, 42, 0xFF };
 unsigned char rtn_from_interrupt[7]			 = { 0, 2, 28, 30, 31, 32, 0xFF };
@@ -135,6 +135,10 @@ void CPU_cycle(void) {
 		data_fetched = true;
 		Instruction_lookup(&cpu_emu_data);
 
+	}
+
+	if (CPU_REGISTERS.PC.REG == 0XCE1E) {
+		CPU_REGISTERS.PC.REG = 0XCE1E;
 	}
 
 
@@ -357,13 +361,16 @@ void CPU_cycle(void) {
 		//******************************** Stack pointer operations ********************************
 
 	case 24 :	//Push PC.HIGH byte to stack
-		Memory_access(write_op, CPU_REGISTERS.SP, CPU_REGISTERS.PC.BYTE.HIGH);
+		if (cpu_emu_data.opcode = 0x20) CPU_REGISTERS.PC.REG++;			//***Fix this bodge***
+	    Memory_access(write_op, 0x0100 | CPU_REGISTERS.SP, CPU_REGISTERS.PC.BYTE.HIGH);
+		
 		CPU_REGISTERS.SP--;
 		break;
 
 
 	case 25 :	//Push PC.LOW byte to stack
-		Memory_access(write_op, CPU_REGISTERS.SP, CPU_REGISTERS.PC.BYTE.LOW);
+		Memory_access(write_op, 0x0100 | CPU_REGISTERS.SP, CPU_REGISTERS.PC.BYTE.LOW);
+		if (cpu_emu_data.opcode = 0x20) CPU_REGISTERS.PC.REG--;			//***Fix this bodge***
 		CPU_REGISTERS.SP--;
 		break;
 
@@ -371,30 +378,30 @@ void CPU_cycle(void) {
 	case 26 :	//Push S_REG to stack
 		CPU_REGISTERS.S_REG.BIT.BH = 0x01;
 		if (cpu_emu_data.opcode == 0x00 || cpu_emu_data.opcode == 0x08) {
-			Memory_access(write_op, CPU_REGISTERS.SP, CPU_REGISTERS.S_REG.REG|(1<<4));
+			Memory_access(write_op, 0x0100 | CPU_REGISTERS.SP, CPU_REGISTERS.S_REG.REG|(1<<4));
 		}
 		else {
-			Memory_access(write_op, CPU_REGISTERS.SP, CPU_REGISTERS.S_REG.REG);
+			Memory_access(write_op, 0x0100 | CPU_REGISTERS.SP, CPU_REGISTERS.S_REG.REG);
 		}
 		CPU_REGISTERS.SP--;
 		break;
 
 
 	case 27 :	//Push ACCUMULATOR to stack
-		Memory_access(write_op, CPU_REGISTERS.SP, CPU_REGISTERS.ACC_REG);
+		Memory_access(write_op, 0x0100 | CPU_REGISTERS.SP, CPU_REGISTERS.ACC_REG);
 		CPU_REGISTERS.SP--;
 		break;
 
 
 	case 28:	//Pull DATA from stack (data not used)
-		Memory_access(fetch_op, CPU_REGISTERS.SP, 0);
+		Memory_access(fetch_op, 0x0100 | CPU_REGISTERS.SP, 0);
 		data_fetched = true;
 		break;
 
 
 	case 29:	//Pull ACCUMULATOR from stack
 		CPU_REGISTERS.SP++;
-		CPU_REGISTERS.ACC_REG = Memory_access(fetch_op, CPU_REGISTERS.SP, 0);
+		CPU_REGISTERS.ACC_REG = Memory_access(fetch_op, 0x0100 | CPU_REGISTERS.SP, 0);
 		cpu_emu_data.instruction_ptr();
 		data_fetched = true;
 		break;
@@ -402,7 +409,7 @@ void CPU_cycle(void) {
 
 	case 30:	//Pull S_REG from stack
 		CPU_REGISTERS.SP++;
-		CPU_REGISTERS.S_REG.REG = Memory_access(fetch_op, CPU_REGISTERS.SP, 0);				//*******************if BRK - SET B bit in status reg!*******************
+		CPU_REGISTERS.S_REG.REG = Memory_access(fetch_op, 0x0100 | CPU_REGISTERS.SP, 0);				//*******************if BRK - SET B bit in status reg!*******************
 		if (CPU_REGISTERS.S_REG.BIT.BL != 0) {
 			//Do stuff
 		}
@@ -414,14 +421,14 @@ void CPU_cycle(void) {
 
 	case 31 :	//Pull PC.LOW byte from stack
 		CPU_REGISTERS.SP++;
-		CPU_REGISTERS.PC.BYTE.LOW = Memory_access(fetch_op, CPU_REGISTERS.SP, 0);
+		CPU_REGISTERS.PC.BYTE.LOW = Memory_access(fetch_op, 0x0100 | CPU_REGISTERS.SP, 0);
 		data_fetched = true;
 		break;
 
 
 	case 32 :	//Pull PC.HIGH byte from stack
 		CPU_REGISTERS.SP++;
-		CPU_REGISTERS.PC.BYTE.HIGH = Memory_access(fetch_op, CPU_REGISTERS.SP, 0);
+		CPU_REGISTERS.PC.BYTE.HIGH = Memory_access(fetch_op, 0x0100 | CPU_REGISTERS.SP, 0);
 		data_fetched = true;
 		break;
 
@@ -498,11 +505,26 @@ void CPU_cycle(void) {
 		//Error 
 		break;
 	}
-	
-	if (cpu_emu_data.cycle == 0) {
-		cpu_emu_data.PC = CPU_REGISTERS.PC.REG;
-	}
 
+
+
+
+#ifdef LOGGING_ENABLED
+	static unsigned short PC  = 0;
+	static unsigned char  ACC = 0;
+	static unsigned char  X   = 0;
+	static unsigned char  Y   = 0;
+	static unsigned char  P   = 0;
+	static unsigned char  SP  = 0;
+	if (cpu_emu_data.cycle == 0) {
+		PC	= CPU_REGISTERS.PC.REG;
+		ACC = CPU_REGISTERS.ACC_REG;
+		X	= CPU_REGISTERS.X_REG;
+		Y	= CPU_REGISTERS.Y_REG;
+		P	= CPU_REGISTERS.S_REG.REG;
+		SP  = CPU_REGISTERS.SP;
+	}
+#endif
 
 	cpu_emu_data.cycle++;
 
@@ -533,14 +555,13 @@ void CPU_cycle(void) {
 		page_crossed_prev = false;
 		//Output txt logging
 		sprintf(cpu_emu_data.log_string, "%.4X   %.2X   %.2X   %.2X    %s    A:%.2X    X:%.2X    Y:%.2X    P:%.2X    SP:%.2X       BaseAddr:%.4X    IndirAddr:%.4X    %s\n", 
-				cpu_emu_data.PC, cpu_emu_data.F3, cpu_emu_data.F2, cpu_emu_data.F1, cpu_emu_data.inst_string, CPU_REGISTERS.ACC_REG,
+				PC, cpu_emu_data.F3, cpu_emu_data.F2, cpu_emu_data.F1, cpu_emu_data.inst_string, CPU_REGISTERS.ACC_REG,
 				CPU_REGISTERS.X_REG, CPU_REGISTERS.Y_REG, CPU_REGISTERS.S_REG.REG, CPU_REGISTERS.SP, cpu_emu_data.base_addr.reg,
 				cpu_emu_data.indexed_addr.reg, cpu_emu_data.addr_string);
 		Update_txt_log(cpu_emu_data.log_string);
 		//Output csv logging
 		sprintf(cpu_emu_data.log_string, "%.4X,%s,%.2X,%.2X,%.2X,%.2X,%.2X\n",
-			cpu_emu_data.PC, cpu_emu_data.inst_string, CPU_REGISTERS.ACC_REG,
-			CPU_REGISTERS.X_REG, CPU_REGISTERS.Y_REG, CPU_REGISTERS.S_REG.REG, CPU_REGISTERS.SP);
+			PC, cpu_emu_data.inst_string, ACC, X, Y, P, SP);
 		Update_csv_log(cpu_emu_data.log_string);
 		cpu_emu_data.F3 = 0;
 		cpu_emu_data.F2 = 0;
@@ -2079,7 +2100,11 @@ void Instruction_lookup(cpu_emu_dat *cpu_emu_data) {
 
 
 	default:
-		//Error
+		//Unsupported operation! 
+		//Need to interrupt host here to tell user game is not supported
+		printf("Opcode 0x%.2X is currently unsupported\n", cpu_emu_data->opcode);
+		printf("PC value = 0x%.4X\n", CPU_REGISTERS.PC.REG);
+		while (1);
 		break;
 	}
 
@@ -2173,11 +2198,21 @@ void ADC(cpu_emu_dat *cpu_emu_data) {
 	//ADC - Add memory to accumulator with carry
 	//NOTE: NES doesn't make use of decimal mode
 	//Affects flags - N,Z,C,V 
+	unsigned char sum;
 	unsigned short temp;
-	unsigned char c6 = ((cpu_emu_data->data & (1 << 6)) & (CPU_REGISTERS.ACC_REG & (1 << 6)));
+	//unsigned char c6 = ((cpu_emu_data->data & (1 << 6)) >> 6 ) & ((CPU_REGISTERS.ACC_REG & (1 << 6)) >> 6);
+	
+	sum = CPU_REGISTERS.ACC_REG + cpu_emu_data->data + CPU_REGISTERS.S_REG.BIT.C;
+	temp = CPU_REGISTERS.ACC_REG + cpu_emu_data->data + CPU_REGISTERS.S_REG.BIT.C;
+	
+	if ((CPU_REGISTERS.ACC_REG ^ sum) & (cpu_emu_data->data ^ sum) & 0x80) {
+		Set_overflow_flag();
+	}
+	else {
+		Clear_overflow_flag();
+	}
 	
 	CPU_REGISTERS.ACC_REG += cpu_emu_data->data + CPU_REGISTERS.S_REG.BIT.C;
-	temp = CPU_REGISTERS.ACC_REG + cpu_emu_data->data + CPU_REGISTERS.S_REG.BIT.C;
 	Clear_carry_flag();
 
 	if (temp > 0x00FF) {
@@ -2186,7 +2221,7 @@ void ADC(cpu_emu_dat *cpu_emu_data) {
 
 	Update_zero_flag(CPU_REGISTERS.ACC_REG);
 	Update_negative_flag(CPU_REGISTERS.ACC_REG);
-	CPU_REGISTERS.S_REG.BIT.V = Check_carry_flag() ^ c6;
+	//CPU_REGISTERS.S_REG.BIT.V = Check_carry_flag() ^ c6;
 }
 
 
@@ -2387,9 +2422,19 @@ void CMP(cpu_emu_dat *cpu_emu_data) {
 	//Set flag C if A >= M, Set flag Z if A = M, Set flag N if bit 7 of result is set 
 	//Affects flags - N,Z,C
 	unsigned char result = CPU_REGISTERS.ACC_REG - cpu_emu_data->data;
-	if (CPU_REGISTERS.ACC_REG >= cpu_emu_data->data) Set_carry_flag();
-	if (CPU_REGISTERS.ACC_REG == cpu_emu_data->data) Set_zero_flag();
-	if (result & (1 << 7)) Set_negative_flag();
+	if (CPU_REGISTERS.ACC_REG >= cpu_emu_data->data) {
+		Set_carry_flag();
+	}
+	else {
+		Clear_carry_flag();
+	}
+	if (CPU_REGISTERS.ACC_REG == cpu_emu_data->data) {
+		Set_zero_flag();
+	}
+	else {
+		Clear_zero_flag();
+	}
+	Update_negative_flag(result);
 }
 
 
@@ -2398,10 +2443,12 @@ void CPX(cpu_emu_dat *cpu_emu_data) {
 	//CMP - Subtract memory from X register to compare values. Result not kept.
 	//Set flag C if X >= M, Set flag Z if X = M, Set flag N if bit 7 of result is set 
 	//Affects flags - N,Z,C
-	unsigned char result = CPU_REGISTERS.X_REG + cpu_emu_data->data;
+	unsigned char result = CPU_REGISTERS.X_REG - cpu_emu_data->data;
 	if (CPU_REGISTERS.X_REG >= cpu_emu_data->data) Set_carry_flag();
+	else Clear_carry_flag();
 	if (CPU_REGISTERS.X_REG == cpu_emu_data->data) Set_zero_flag();
-	if (result & (1 << 7)) Set_negative_flag();
+	else Clear_zero_flag();
+	Update_negative_flag(result);
 }
 
 
@@ -2410,10 +2457,12 @@ void CPY(cpu_emu_dat *cpu_emu_data) {
 	//CMP - Subtract memory from Y register to compare values. Result not kept.
 	//Set flag C if Y >= M, Set flag Z if Y = M, Set flag N if bit 7 of result is set 
 	//Affects flags - N,Z,C
-	unsigned char result = CPU_REGISTERS.Y_REG + cpu_emu_data->data;
+	unsigned char result = CPU_REGISTERS.Y_REG - cpu_emu_data->data;
 	if (CPU_REGISTERS.Y_REG >= cpu_emu_data->data) Set_carry_flag();
+	else Clear_carry_flag();
 	if (CPU_REGISTERS.Y_REG == cpu_emu_data->data) Set_zero_flag();
-	if (result & (1 << 7)) Set_negative_flag();
+	else Clear_zero_flag();
+	Update_negative_flag(result);
 }
 
 
@@ -2569,7 +2618,7 @@ void LSR(cpu_emu_dat *cpu_emu_data) {
 		cpu_emu_data->data >>= 1;
 		Update_zero_flag(cpu_emu_data->data);
 	}
-	Clear_zero_flag();
+	Clear_negative_flag();
 }
 
 

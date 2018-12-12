@@ -102,23 +102,20 @@ int main(void) {
 
 
 	//Setup emulator (Check vaid header file)
-	if ( Setup_emulator(ROM_header) ) { 
-		printf("valid ROM!"); 
-	}
-	else { 
+	if ( !Setup_emulator(ROM_header) ) { 
 		printf("invalid ROM!"); 
 	}
 
 
 #ifdef LOGGING_ENABLED
-	CPU_LOG_TXT = fopen("CPU_LOG_TXT.txt", "w");
+	CPU_LOG_TXT = fopen("cpu_log.txt", "w");
 	if (CPU_LOG_TXT == NULL) {
-		printf("Error creating log file");
+		printf("Error creating txt log file");
 	}
 
-	CPU_LOG_CSV = fopen("CPU_LOG_CSV.csv", "w");
+	CPU_LOG_CSV = fopen("test.csv", "w");
 	if (CPU_LOG_CSV == NULL) {
-		printf("Error creating log file");
+		printf("Error creating csv log file");
 	}
 #endif
 	
@@ -126,7 +123,6 @@ int main(void) {
 
 	while (1) { 
 
-		
 		Emulator_action_tick();
 	}
 

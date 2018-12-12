@@ -47,7 +47,6 @@ unsigned char Memory_access(unsigned char operation, unsigned short memory_addre
 		memory_address = prev_fetch_addr;
 	}
 
-
 	unsigned char fetched_byte = 0;
 
 	//Apply mapper mask
@@ -73,13 +72,6 @@ unsigned char Memory_access(unsigned char operation, unsigned short memory_addre
 	else if (operation == fetch_previous) {
 		return NES_MEMORY[memory_address];
 	}
-	
-	if ((NES_MEMORY[0X02] != 0) || (NES_MEMORY[0X03] != 0)) {
-		printf("0x02 = 0x%.2X\n", NES_MEMORY[0X02]);
-		printf("0x03 = 0x%.2X\n", NES_MEMORY[0X03]);
-		getchar();
-	}
-
 
 	return 0;
 }
