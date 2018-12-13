@@ -210,32 +210,9 @@ extern void Setup_CPU(void);
 extern void CPU_cycle(void);
 
 //CPU low level function prototypes
-extern void Update_zero_flag(unsigned char val);
-extern void Update_negative_flag(unsigned char val);
 extern bool Check_for_page_crossing(unsigned short value);
-extern void Update_overflow_flag(unsigned char acc, unsigned char val);
 extern unsigned char Memory_access(unsigned char operation, unsigned short addr, unsigned char data);
-//Status reg flag functions
-extern void Set_negative_flag(void);
-extern void Set_zero_flag(void);
-extern void Set_carry_flag(void);
-extern void Set_interrupt_flag(void);
-extern void Set_decimal_flag(void);
-extern void Set_overflow_flag(void);
-extern void Clear_negative_flag(void);
-extern void Clear_zero_flag(void);
-extern void Clear_carry_flag(void);
-extern void Clear_interrupt_flag(void);
-extern void Clear_decimal_flag(void);
-extern void Clear_break_flag(void);
-extern void Clear_overflow_flag(void);
-extern unsigned char Check_negative_flag(void);
-extern unsigned char Check_zero_flag(void);
-extern unsigned char Check_carry_flag(void);
-extern unsigned char Check_interrupt_flag(void);
-extern unsigned char Check_decimal_flag(void);
-extern unsigned char Check_break_flag(void);
-extern unsigned char Check_overflow_flag(void);
+
 
 
 //Instruction exection functions

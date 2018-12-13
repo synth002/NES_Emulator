@@ -583,7 +583,7 @@ void Instruction_lookup(cpu_emu_dat *cpu_emu_data) {
 
 	//This function decodes the latest instruction opcode fetched,
 	//it identifies the instruction - as well as the addressing mode
-	//used. It updateS the 'cpu_emu_data' struct with the  instruction 
+	//used. It updates the 'cpu_emu_data' struct with the  instruction 
 	//function pointer, as well as the addressing mode to be used.
 
 	switch (cpu_emu_data->opcode) {
@@ -2116,66 +2116,53 @@ void Instruction_lookup(cpu_emu_dat *cpu_emu_data) {
 		strcpy(cpu_emu_data->addr_string, "Immediate");
 		break;
 
-
 	case zero_page:
 		strcpy(cpu_emu_data->addr_string, "Zero_page");
 		break;
-
 
 	case zero_page_x:
 		strcpy(cpu_emu_data->addr_string, "Zero_page_x");
 		break;
 
-
 	case zero_page_y:
 		strcpy(cpu_emu_data->addr_string, "Zero_page_y");
 		break;
-
 
 	case absolute:
 		strcpy(cpu_emu_data->addr_string, "Absolute");
 		break;
 
-
 	case absolute_x:
 		strcpy(cpu_emu_data->addr_string, "Absolute_x");
 		break;
-
 
 	case absolute_y:
 		strcpy(cpu_emu_data->addr_string, "Absolute_y");
 		break;
 
-
 	case indexed_indirect_x:
 		strcpy(cpu_emu_data->addr_string, "Indexed_indirect_x");
 		break;
-
 
 	case indirect_indexed_y:
 		strcpy(cpu_emu_data->addr_string, "Indirect_indexed_y");
 		break;
 
-
 	case accumulator:
 		strcpy(cpu_emu_data->addr_string, "Accumulator");
 		break;
-
 
 	case relative:
 		strcpy(cpu_emu_data->addr_string, "Relative");
 		break;
 
-
 	case implied:
 		strcpy(cpu_emu_data->addr_string, "Implied");
 		break;
 
-
 	case indirect:
 		strcpy(cpu_emu_data->addr_string, "Indirect");
 		break;
-
 
 	default:
 		//Error
@@ -2200,28 +2187,30 @@ void ADC(cpu_emu_dat *cpu_emu_data) {
 	//Affects flags - N,Z,C,V 
 	unsigned char sum;
 	unsigned short temp;
-	//unsigned char c6 = ((cpu_emu_data->data & (1 << 6)) >> 6 ) & ((CPU_REGISTERS.ACC_REG & (1 << 6)) >> 6);
 	
-	sum = CPU_REGISTERS.ACC_REG + cpu_emu_data->data + CPU_REGISTERS.S_REG.BIT.C;
+	sum  = CPU_REGISTERS.ACC_REG + cpu_emu_data->data + CPU_REGISTERS.S_REG.BIT.C;
 	temp = CPU_REGISTERS.ACC_REG + cpu_emu_data->data + CPU_REGISTERS.S_REG.BIT.C;
 	
 	if ((CPU_REGISTERS.ACC_REG ^ sum) & (cpu_emu_data->data ^ sum) & 0x80) {
-		Set_overflow_flag();
+		CPU_REGISTERS.S_REG.BIT.V = 1;
 	}
 	else {
-		Clear_overflow_flag();
+		CPU_REGISTERS.S_REG.BIT.V = 0;
 	}
 	
 	CPU_REGISTERS.ACC_REG += cpu_emu_data->data + CPU_REGISTERS.S_REG.BIT.C;
-	Clear_carry_flag();
+	CPU_REGISTERS.S_REG.BIT.C = 0;
 
 	if (temp > 0x00FF) {
-		Set_carry_flag();
+		CPU_REGISTERS.S_REG.BIT.C = 1;
 	}
 
-	Update_zero_flag(CPU_REGISTERS.ACC_REG);
-	Update_negative_flag(CPU_REGISTERS.ACC_REG);
-	//CPU_REGISTERS.S_REG.BIT.V = Check_carry_flag() ^ c6;
+	//Update negative flag
+	if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2230,8 +2219,13 @@ void AND(cpu_emu_dat *cpu_emu_data) {
 	//AND - 'AND' memory with accumulator
 	//Affects flags - N,Z
 	CPU_REGISTERS.ACC_REG &= cpu_emu_data->data;
-	Update_negative_flag(CPU_REGISTERS.ACC_REG);
-	Update_zero_flag(CPU_REGISTERS.ACC_REG);
+
+	//Update negative flag
+	if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2243,14 +2237,22 @@ void ASL(cpu_emu_dat *cpu_emu_data) {
 	if (cpu_emu_data->address_mode == accumulator) {
 		CPU_REGISTERS.S_REG.BIT.C = (CPU_REGISTERS.ACC_REG & (1 << 7)) >> 7;
 		CPU_REGISTERS.ACC_REG <<= 1;
-		Update_zero_flag(CPU_REGISTERS.ACC_REG);
-		Update_negative_flag(CPU_REGISTERS.ACC_REG);
+		//Update negative flag
+		if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+		else CPU_REGISTERS.S_REG.BIT.N = 0;
+		//Update zero flag
+		if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+		else CPU_REGISTERS.S_REG.BIT.Z = 0;
 	}
 	else {
 		CPU_REGISTERS.S_REG.BIT.C = (cpu_emu_data->data & (1 << 7)) >> 7;
 		cpu_emu_data->data <<= 1;
-		Update_zero_flag(cpu_emu_data->data);
-		Update_negative_flag(cpu_emu_data->data);
+		//Update negative flag
+		if (cpu_emu_data->data & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+		else CPU_REGISTERS.S_REG.BIT.N = 0;
+		//Update zero flag
+		if (cpu_emu_data->data == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+		else CPU_REGISTERS.S_REG.BIT.Z = 0;
 	}
 }
 
@@ -2259,7 +2261,7 @@ void BCC(cpu_emu_dat *cpu_emu_data) {
 
 	//BCC - Branch on carry clear (if C = 0)
 	//Affects flags - NONE
-	if ( Check_carry_flag() == 0 ) {
+	if (CPU_REGISTERS.S_REG.BIT.C == 0 ) {
 		cpu_emu_data->branch_taken = true;
 	}
 	else {
@@ -2272,7 +2274,7 @@ void BCS(cpu_emu_dat *cpu_emu_data) {
 
 	//BCS - Branch on carry set (if C = 1)
 	//Affects flags - NONE
-	if ( Check_carry_flag() == 1 ) {
+	if ( CPU_REGISTERS.S_REG.BIT.C == 1 ) {
 		cpu_emu_data->branch_taken = true;
 	}
 	else {
@@ -2285,7 +2287,7 @@ void BEQ(cpu_emu_dat *cpu_emu_data) {
 
 	//BEQ - Branch on result zero (if Z = 1)
 	//Affects flags - NONE
-	if ( Check_zero_flag() == 1 ) {
+	if ( CPU_REGISTERS.S_REG.BIT.Z == 1 ) {
 		cpu_emu_data->branch_taken = true;
 	}
 	else {
@@ -2303,7 +2305,9 @@ void BIT(cpu_emu_dat *cpu_emu_data) {
 	unsigned char temp = (CPU_REGISTERS.ACC_REG & cpu_emu_data->data);
 	CPU_REGISTERS.S_REG.BIT.N = (cpu_emu_data->data & (1 << 7)) >> 7;
 	CPU_REGISTERS.S_REG.BIT.V = (cpu_emu_data->data & (1 << 6)) >> 6;
-	Update_zero_flag(temp);
+	//Update zero flag
+	if (temp == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2311,7 +2315,7 @@ void BMI(cpu_emu_dat *cpu_emu_data) {
 
 	//BMI - Branch on result minus (branch if flag N = 1)
 	//Affects flags - NONE
-	if ( Check_negative_flag() == 1 ) {
+	if ( CPU_REGISTERS.S_REG.BIT.N == 1 ) {
 		cpu_emu_data->branch_taken = true;
 	}
 	else {
@@ -2325,7 +2329,7 @@ void BNE(cpu_emu_dat *cpu_emu_data) {
 
 	//BNE - Branch on result not zero (branch if flag Z = 0)
 	//Affects flags - NONE
-	if ( Check_zero_flag() == 0 ) {
+	if ( CPU_REGISTERS.S_REG.BIT.Z == 0 ) {
 		cpu_emu_data->branch_taken = true;
 	}
 	else {
@@ -2338,7 +2342,7 @@ void BPL(cpu_emu_dat *cpu_emu_data) {
 
 	//BPL - Branch on result positive (branch if flag N = 0)
 	//Affects flags - NONE
-	if ( Check_negative_flag() == 0 ) {
+	if ( CPU_REGISTERS.S_REG.BIT.N == 0 ) {
 		cpu_emu_data->branch_taken = true;
 	}
 	else {
@@ -2362,7 +2366,7 @@ void BVC(cpu_emu_dat *cpu_emu_data) {
 
 	//BVC - Branch on overflow clear (branch if flag V = 0)
 	//Affects flags - NONE
-	if ( Check_overflow_flag() == 0 ) {
+	if (CPU_REGISTERS.S_REG.BIT.V == 0 ) {
 		cpu_emu_data->branch_taken = true;
 	}
 	else {
@@ -2375,7 +2379,7 @@ void BVS(cpu_emu_dat *cpu_emu_data) {
 
 	//BVS - Branch on overflow set (branch if flag V = 1)
 	//Affects flags - NONE
-	if ( Check_overflow_flag() == 1 ) {
+	if ( CPU_REGISTERS.S_REG.BIT.V == 1 ) {
 		cpu_emu_data->branch_taken = true;
 	}
 	else {
@@ -2388,7 +2392,7 @@ void CLC(cpu_emu_dat *cpu_emu_data) {
 
 	//CLC - Clear carry flag
 	//Affects flags - C
-	Clear_carry_flag();
+	CPU_REGISTERS.S_REG.BIT.C = 0;
 }
 
 
@@ -2396,7 +2400,7 @@ void CLD(cpu_emu_dat *cpu_emu_data) {
 
 	//CLD - Clear decimal flag
 	//Affects flags - D
-	Clear_decimal_flag();
+	CPU_REGISTERS.S_REG.BIT.D = 0;
 }
 
 
@@ -2404,7 +2408,7 @@ void CLI(cpu_emu_dat *cpu_emu_data) {
 
 	//CLI - Clear IRQ disable flag
 	//Affects flags - I
-	Clear_interrupt_flag();
+	CPU_REGISTERS.S_REG.BIT.I = 0;
 }
 
 
@@ -2412,7 +2416,7 @@ void CLV(cpu_emu_dat *cpu_emu_data) {
 
 	//CLV - Clear overflow flag
 	//Affects flags - V
-	Clear_overflow_flag();
+	CPU_REGISTERS.S_REG.BIT.V = 0;
 }
 
 
@@ -2423,18 +2427,20 @@ void CMP(cpu_emu_dat *cpu_emu_data) {
 	//Affects flags - N,Z,C
 	unsigned char result = CPU_REGISTERS.ACC_REG - cpu_emu_data->data;
 	if (CPU_REGISTERS.ACC_REG >= cpu_emu_data->data) {
-		Set_carry_flag();
+		CPU_REGISTERS.S_REG.BIT.C = 1;
 	}
 	else {
-		Clear_carry_flag();
+		CPU_REGISTERS.S_REG.BIT.C = 0;
 	}
 	if (CPU_REGISTERS.ACC_REG == cpu_emu_data->data) {
-		Set_zero_flag();
+		CPU_REGISTERS.S_REG.BIT.Z = 1;
 	}
 	else {
-		Clear_zero_flag();
+		CPU_REGISTERS.S_REG.BIT.Z = 0;
 	}
-	Update_negative_flag(result);
+	//Update negative flag
+	if (result & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
 }
 
 
@@ -2444,11 +2450,13 @@ void CPX(cpu_emu_dat *cpu_emu_data) {
 	//Set flag C if X >= M, Set flag Z if X = M, Set flag N if bit 7 of result is set 
 	//Affects flags - N,Z,C
 	unsigned char result = CPU_REGISTERS.X_REG - cpu_emu_data->data;
-	if (CPU_REGISTERS.X_REG >= cpu_emu_data->data) Set_carry_flag();
-	else Clear_carry_flag();
-	if (CPU_REGISTERS.X_REG == cpu_emu_data->data) Set_zero_flag();
-	else Clear_zero_flag();
-	Update_negative_flag(result);
+	if (CPU_REGISTERS.X_REG >= cpu_emu_data->data) CPU_REGISTERS.S_REG.BIT.C = 1;
+	else CPU_REGISTERS.S_REG.BIT.C = 0;
+	if (CPU_REGISTERS.X_REG == cpu_emu_data->data) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
+	//Update negative flag
+	if (result & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
 }
 
 
@@ -2458,11 +2466,13 @@ void CPY(cpu_emu_dat *cpu_emu_data) {
 	//Set flag C if Y >= M, Set flag Z if Y = M, Set flag N if bit 7 of result is set 
 	//Affects flags - N,Z,C
 	unsigned char result = CPU_REGISTERS.Y_REG - cpu_emu_data->data;
-	if (CPU_REGISTERS.Y_REG >= cpu_emu_data->data) Set_carry_flag();
-	else Clear_carry_flag();
-	if (CPU_REGISTERS.Y_REG == cpu_emu_data->data) Set_zero_flag();
-	else Clear_zero_flag();
-	Update_negative_flag(result);
+	if (CPU_REGISTERS.Y_REG >= cpu_emu_data->data) CPU_REGISTERS.S_REG.BIT.C = 1;
+	else CPU_REGISTERS.S_REG.BIT.C = 0;
+	if (CPU_REGISTERS.Y_REG == cpu_emu_data->data) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
+	//Update negative flag
+	if (result & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
 }
 
 
@@ -2472,8 +2482,12 @@ void DEC(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N
 	cpu_emu_data->data--;
-	Update_negative_flag(cpu_emu_data->data);
-	Update_zero_flag(cpu_emu_data->data);
+	//Update negative flag
+	if (cpu_emu_data->data & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (cpu_emu_data->data == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2483,8 +2497,12 @@ void DEX(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z, N
 	CPU_REGISTERS.X_REG--;
-	Update_negative_flag(CPU_REGISTERS.X_REG);
-	Update_zero_flag(CPU_REGISTERS.X_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.X_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.X_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2494,8 +2512,12 @@ void DEY(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N
 	CPU_REGISTERS.Y_REG--;
-	Update_negative_flag(CPU_REGISTERS.Y_REG);
-	Update_zero_flag(CPU_REGISTERS.Y_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.Y_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.Y_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2505,8 +2527,12 @@ void EOR(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N
 	CPU_REGISTERS.ACC_REG ^= cpu_emu_data->data;
-	Update_zero_flag(CPU_REGISTERS.ACC_REG);
-	Update_negative_flag(CPU_REGISTERS.ACC_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2516,8 +2542,12 @@ void INC(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N 
 	cpu_emu_data->data++;
-	Update_zero_flag(cpu_emu_data->data);
-	Update_negative_flag(cpu_emu_data->data);
+	//Update negative flag
+	if (cpu_emu_data->data & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (cpu_emu_data->data == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2527,8 +2557,12 @@ void INX(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N
 	CPU_REGISTERS.X_REG++;
-	Update_negative_flag(CPU_REGISTERS.X_REG);
-	Update_zero_flag(CPU_REGISTERS.X_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.X_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.X_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2538,8 +2572,12 @@ void INY(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N
 	CPU_REGISTERS.Y_REG++;
-	Update_negative_flag(CPU_REGISTERS.Y_REG);
-	Update_zero_flag(CPU_REGISTERS.Y_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.Y_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.Y_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2576,8 +2614,12 @@ void LDA(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N
 	CPU_REGISTERS.ACC_REG = cpu_emu_data->data;
-	Update_zero_flag(CPU_REGISTERS.ACC_REG);
-	Update_negative_flag(CPU_REGISTERS.ACC_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2587,8 +2629,12 @@ void LDX(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N
 	CPU_REGISTERS.X_REG = cpu_emu_data->data;
-	Update_zero_flag(CPU_REGISTERS.X_REG);
-	Update_negative_flag(CPU_REGISTERS.X_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.X_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.X_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2598,8 +2644,12 @@ void LDY(cpu_emu_dat *cpu_emu_data) {
 	//Set flag Z if result 0, Set flag N if bit 7 of result is set.
 	//Affects flags - Z,N
 	CPU_REGISTERS.Y_REG = cpu_emu_data->data;
-	Update_zero_flag(CPU_REGISTERS.Y_REG);
-	Update_negative_flag(CPU_REGISTERS.Y_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.Y_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.Y_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2611,14 +2661,19 @@ void LSR(cpu_emu_dat *cpu_emu_data) {
 	if (cpu_emu_data->address_mode == accumulator) {
 		CPU_REGISTERS.S_REG.BIT.C = CPU_REGISTERS.ACC_REG & 0x01;
 		CPU_REGISTERS.ACC_REG >>= 1;
-		Update_zero_flag(CPU_REGISTERS.ACC_REG);
+		//Update zero flag
+		if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+		else CPU_REGISTERS.S_REG.BIT.Z = 0;
 	}
 	else {
 		CPU_REGISTERS.S_REG.BIT.C = cpu_emu_data->data & 0x01;
 		cpu_emu_data->data >>= 1;
-		Update_zero_flag(cpu_emu_data->data);
+		//Update zero flag
+		if (cpu_emu_data->data == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+		else CPU_REGISTERS.S_REG.BIT.Z = 0;
 	}
-	Clear_negative_flag();
+	CPU_REGISTERS.S_REG.BIT.N = 0;
+
 }
 
 
@@ -2635,8 +2690,12 @@ void ORA(cpu_emu_dat *cpu_emu_data) {
 	//ORA - 'OR' memory with accumulator. Result -> A.
 	//Affects flags - Z,N
 	CPU_REGISTERS.ACC_REG |= cpu_emu_data->data;
-	Update_zero_flag(CPU_REGISTERS.ACC_REG);
-	Update_negative_flag(CPU_REGISTERS.ACC_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2661,8 +2720,12 @@ void PLA(cpu_emu_dat *cpu_emu_data) {
 	//This operation is handled entirely by the state machine!
 	//PLA - Pull accumulator from the stack.
 	//Affects flags - Z,N
-	Update_zero_flag(CPU_REGISTERS.ACC_REG);
-	Update_negative_flag(CPU_REGISTERS.ACC_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
@@ -2686,15 +2749,23 @@ void ROL(cpu_emu_dat *cpu_emu_data) {
 		CPU_REGISTERS.S_REG.BIT.C = (CPU_REGISTERS.ACC_REG & (1 << 7)) >> 7;
 		CPU_REGISTERS.ACC_REG <<= 1;
 		CPU_REGISTERS.ACC_REG |= temp;
-		Update_negative_flag(CPU_REGISTERS.ACC_REG);
-		Update_zero_flag(CPU_REGISTERS.ACC_REG);
+		//Update negative flag
+		if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+		else CPU_REGISTERS.S_REG.BIT.N = 0;
+		//Update zero flag
+		if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+		else CPU_REGISTERS.S_REG.BIT.Z = 0;
 	}
 	else {
 		CPU_REGISTERS.S_REG.BIT.C = (cpu_emu_data->data & (1 << 7)) >> 7;
 		cpu_emu_data->data <<= 1;
 		cpu_emu_data->data |= temp;
-		Update_negative_flag(cpu_emu_data->data);
-		Update_zero_flag(cpu_emu_data->data);
+		//Update negative flag
+		if (cpu_emu_data->data & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+		else CPU_REGISTERS.S_REG.BIT.N = 0;
+		//Update zero flag
+		if (cpu_emu_data->data == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+		else CPU_REGISTERS.S_REG.BIT.Z = 0;
 	}
 }
 
@@ -2711,15 +2782,23 @@ void ROR(cpu_emu_dat *cpu_emu_data) {
 		CPU_REGISTERS.S_REG.BIT.C = (CPU_REGISTERS.ACC_REG & 0x01);
 		CPU_REGISTERS.ACC_REG >>= 1;
 		CPU_REGISTERS.ACC_REG |= (temp << 7);
-		Update_negative_flag(CPU_REGISTERS.ACC_REG);
-		Update_zero_flag(CPU_REGISTERS.ACC_REG);
+		//Update negative flag
+		if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+		else CPU_REGISTERS.S_REG.BIT.N = 0;
+		//Update zero flag
+		if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+		else CPU_REGISTERS.S_REG.BIT.Z = 0;
 	}
 	else {
 		CPU_REGISTERS.S_REG.BIT.C = (cpu_emu_data->data & 0x01);
 		cpu_emu_data->data >>= 1;
 		cpu_emu_data->data |= (temp << 7);
-		Update_negative_flag(cpu_emu_data->data);
-		Update_zero_flag(cpu_emu_data->data);
+		//Update negative flag
+		if (cpu_emu_data->data & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+		else CPU_REGISTERS.S_REG.BIT.N = 0;
+		//Update zero flag
+		if (cpu_emu_data->data == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+		else CPU_REGISTERS.S_REG.BIT.Z = 0;
 	}
 }
 
@@ -2754,31 +2833,31 @@ void SBC(cpu_emu_dat *cpu_emu_data) {
 
 void SEC(cpu_emu_dat *cpu_emu_data) {
 
-	//SEC - Set carry flag.
+	//SEC - Set carry flag
 	//Affects flags - C
-	Set_carry_flag();
+	CPU_REGISTERS.S_REG.BIT.C = 1;
 }
 
 
 void SED(cpu_emu_dat *cpu_emu_data) {
 
-	//SED - Set decimal flag.
+	//SED - Set decimal flag
 	//Affects flags - D
-	Set_decimal_flag();
+	CPU_REGISTERS.S_REG.BIT.D = 1;
 }
 
 
 void SEI(cpu_emu_dat *cpu_emu_data) {
 
-	//SEI - Set IRQ disable flag.
+	//SEI - Set IRQ disable flag
 	//Affects flags - I
-	Set_interrupt_flag();
+	CPU_REGISTERS.S_REG.BIT.I = 1;
 }
 
 
 void STA(cpu_emu_dat *cpu_emu_data) {
 
-	//STA - Store acc. Stores value of accumulator to memory.
+	//STA - Stores value of accumulator to memory
 	//Affects flags - NONE
 	cpu_emu_data->data = CPU_REGISTERS.ACC_REG;
 }
@@ -2786,7 +2865,7 @@ void STA(cpu_emu_dat *cpu_emu_data) {
 
 void STX(cpu_emu_dat *cpu_emu_data) {
 
-	//STX - Store X reg. Stores value of X register to memory.
+	//STX - Stores value of X register to memory
 	//Affects flags - NONE
 	cpu_emu_data->data = CPU_REGISTERS.X_REG;
 }
@@ -2794,7 +2873,7 @@ void STX(cpu_emu_dat *cpu_emu_data) {
 
 void STY(cpu_emu_dat *cpu_emu_data) {
 
-	//STY - Store Y reg. Stores value of Y register to memory.
+	//STY - Stores value of Y register to memory
 	//Affects flags - NONE
 	cpu_emu_data->data = CPU_REGISTERS.Y_REG;
 }
@@ -2802,47 +2881,64 @@ void STY(cpu_emu_dat *cpu_emu_data) {
 
 void TAX(cpu_emu_dat *cpu_emu_data) {
 
-	//TAX - Transfer accumulator to X register. 
+	//TAX - Transfer accumulator to X register
 	//Affects flags - Z,N
 	CPU_REGISTERS.X_REG = CPU_REGISTERS.ACC_REG;
-	Update_negative_flag(CPU_REGISTERS.X_REG);
-	Update_zero_flag(CPU_REGISTERS.X_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.X_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.X_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
+
 }
 
 
 void TAY(cpu_emu_dat *cpu_emu_data) {
 
-	//TAY - Transfer accumulator to Y register. 
+	//TAY - Transfer accumulator to Y register
 	//Affects flags - Z,N
 	CPU_REGISTERS.Y_REG = CPU_REGISTERS.ACC_REG;
-	Update_negative_flag(CPU_REGISTERS.Y_REG);
-	Update_zero_flag(CPU_REGISTERS.Y_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.Y_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.Y_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
 void TSX(cpu_emu_dat *cpu_emu_data) {
 
-	//TSX - Transfer stack pointer to X register.
-	//Affects flags - Z,N (confirm this)
+	//TSX - Transfer stack pointer to X register
+	//Affects flags - Z,N
 	CPU_REGISTERS.X_REG = CPU_REGISTERS.SP;
-	Update_negative_flag(CPU_REGISTERS.X_REG);
-	Update_zero_flag(CPU_REGISTERS.X_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.X_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.X_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
 void TXA(cpu_emu_dat *cpu_emu_data) {
 
-	//TXA - Tansfer X register to accumulator.
+	//TXA - Tansfer X register to accumulator
 	//Affects flags - Z,N
 	CPU_REGISTERS.ACC_REG = CPU_REGISTERS.X_REG;
-	Update_negative_flag(CPU_REGISTERS.ACC_REG);
-	Update_zero_flag(CPU_REGISTERS.ACC_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 
 
 void TXS(cpu_emu_dat *cpu_emu_data) {
 
-	//TXS - Transfer X register to stack pointer.
+	//TXS - Transfer X register to stack pointer
 	//Affects flags - NONE
 	CPU_REGISTERS.SP = CPU_REGISTERS.X_REG;
 }
@@ -2850,11 +2946,15 @@ void TXS(cpu_emu_dat *cpu_emu_data) {
 
 void TYA(cpu_emu_dat *cpu_emu_data) {
 
-	//TYA - Transfer Y register into the accumulator.
+	//TYA - Transfer Y register into the accumulator
 	//Affects flags - Z,N
 	CPU_REGISTERS.ACC_REG = CPU_REGISTERS.Y_REG;
-	Update_negative_flag(CPU_REGISTERS.ACC_REG);
-	Update_zero_flag(CPU_REGISTERS.ACC_REG);
+	//Update negative flag
+	if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
+	else CPU_REGISTERS.S_REG.BIT.N = 0;
+	//Update zero flag
+	if (CPU_REGISTERS.ACC_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 }
 //************************************************************************************************
 //************************************************************************************************
