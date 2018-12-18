@@ -37,24 +37,24 @@ unsigned char modify_write_absolute[7]		 =  { 0, 4, 5, 8, 33, 33, 0xFF };
 unsigned char modify_write_zeropage_x[7]	 =  { 0, 4, 1, 14, 35, 35, 0xFF };
 unsigned char modify_write_absolute_x[8]	 =  { 0, 4, 5, 16, 13, 38, 38, 0xFF };
 //Stack push operations
-unsigned char push_operation_php[4]			 = { 0, 2, 26, 0xFF };
-unsigned char push_operation_pha[4]			 = { 0, 2, 27, 0xFF };
+unsigned char push_operation_php[4]			 =  { 0, 2, 26, 0xFF };
+unsigned char push_operation_pha[4]			 =  { 0, 2, 27, 0xFF };
 //Stack pull operations
-unsigned char pull_operation_plp[5]			 = { 0, 2, 28, 30, 0xFF };
-unsigned char pull_operation_pla[5]			 = { 0, 2, 28, 29, 0xFF };
+unsigned char pull_operation_plp[5]			 =  { 0, 2, 28, 30, 0xFF };
+unsigned char pull_operation_pla[5]			 =  { 0, 2, 28, 29, 0xFF };
 //Subroutine operations
-unsigned char jump_to_subroutine[7]			 = { 0, 4, 28, 24, 25, 6, 0xFF };
-unsigned char rtn_from_subroutine[7]		 = { 0, 2, 28, 31, 32, 2, 0xFF };
+unsigned char jump_to_subroutine[7]			 =  { 0, 4, 28, 24, 25, 6, 0xFF };
+unsigned char rtn_from_subroutine[7]		 =  { 0, 2, 28, 31, 32, 2, 0xFF };
 //Break/interrupt operations
-unsigned char break_operation_irq[8]		 = { 0, 2, 24, 25, 26, 41, 42, 0xFF };
-unsigned char rtn_from_interrupt[7]			 = { 0, 2, 28, 30, 31, 32, 0xFF };
+unsigned char break_operation_irq[8]		 =  { 0, 2, 24, 25, 26, 41, 42, 0xFF };
+unsigned char rtn_from_interrupt[7]			 =  { 0, 2, 28, 30, 31, 32, 0xFF };
 //Jump operations
-unsigned char jump_operation_absolute[4]	 = { 0, 4, 6, 0xFF };
-unsigned char jump_operation_indirect[6]	 = { 0, 4, 5, 22, 23, 0xFF };
+unsigned char jump_operation_absolute[4]	 =  { 0, 4, 6, 0xFF };
+unsigned char jump_operation_indirect[6]	 =  { 0, 4, 5, 22, 23, 0xFF };
 //Branch operations
-unsigned char branch_operation[5]			 = { 0, 3, 40, 40, 0xFF};				//Only continute after 2nd state if branch_taken = true. Only continue after 3rd state if page_crossed = true. 
+unsigned char branch_operation[5]			 =  { 0, 3, 40, 40, 0xFF};				//Only continute after 2nd state if branch_taken = true. Only continue after 3rd state if page_crossed = true. 
 //NOP operation 
-unsigned char nop_operation[3]				 = { 0, 2, 0xFF };
+unsigned char nop_operation[3]				 =  { 0, 2, 0xFF };
 
 
 
@@ -184,9 +184,7 @@ void CPU_cycle(void) {
 		CPU_REGISTERS.PC.REG++;
 		cpu_emu_data.base_addr.byte.high = Memory_access(fetch_op, CPU_REGISTERS.PC.REG, 0);
 		CPU_REGISTERS.PC.REG = cpu_emu_data.base_addr.reg;
-		if (cpu_emu_data.address_mode == absolute) {
-			CPU_REGISTERS.PC.REG--;
-		}
+		if (cpu_emu_data.address_mode == absolute) CPU_REGISTERS.PC.REG--;
 		data_fetched = true;
 		break;
 
@@ -284,9 +282,7 @@ void CPU_cycle(void) {
 			cpu_emu_data.indexed_addr.byte.low = cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.X_REG;
 			cpu_emu_data.indexed_addr.byte.high = cpu_emu_data.base_addr.byte.high;
 			cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
-			if (cpu_emu_data.page_crossed == false) {
-				cpu_emu_data.instruction_ptr(&cpu_emu_data);
-			}
+			if (cpu_emu_data.page_crossed == false) cpu_emu_data.instruction_ptr(&cpu_emu_data);
 		}
 		else if (cpu_emu_data.page_crossed == true) {
 			cpu_emu_data.indexed_addr.byte.high += 1;
@@ -303,9 +299,8 @@ void CPU_cycle(void) {
 			cpu_emu_data.indexed_addr.byte.low = cpu_emu_data.base_addr.byte.low + CPU_REGISTERS.Y_REG;
 			cpu_emu_data.indexed_addr.byte.high = cpu_emu_data.base_addr.byte.high;
 			cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
-			if (cpu_emu_data.page_crossed == false) {
-				cpu_emu_data.instruction_ptr(&cpu_emu_data);
-			}
+			if (cpu_emu_data.page_crossed == false) cpu_emu_data.instruction_ptr(&cpu_emu_data);
+
 		}
 		else if (cpu_emu_data.page_crossed == true) {
 			cpu_emu_data.indexed_addr.byte.high += 1;
@@ -321,9 +316,7 @@ void CPU_cycle(void) {
 			cpu_emu_data.page_crossed = Check_for_page_crossing(cpu_emu_data.indexed_addr.byte.low + CPU_REGISTERS.Y_REG);
 			cpu_emu_data.indexed_addr.byte.low += CPU_REGISTERS.Y_REG;
 			cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
-			if (cpu_emu_data.page_crossed == false) {
-				cpu_emu_data.instruction_ptr(&cpu_emu_data);
-			}
+			if (cpu_emu_data.page_crossed == false) cpu_emu_data.instruction_ptr(&cpu_emu_data);
 		}
 		else  if (cpu_emu_data.page_crossed == true) {
 			cpu_emu_data.indexed_addr.byte.high += 1;
@@ -338,9 +331,7 @@ void CPU_cycle(void) {
 		cpu_emu_data.page_crossed = Check_for_page_crossing(cpu_emu_data.indexed_addr.byte.low + CPU_REGISTERS.Y_REG);
 		cpu_emu_data.indexed_addr.byte.low += CPU_REGISTERS.Y_REG;
 		cpu_emu_data.data = Memory_access(fetch_op, cpu_emu_data.indexed_addr.reg, 0);
-		if (cpu_emu_data.page_crossed == true) {
-			cpu_emu_data.indexed_addr.byte.high += 1;
-		}
+		if (cpu_emu_data.page_crossed == true) cpu_emu_data.indexed_addr.byte.high ++;
 		data_fetched = true;
 		break;
 
@@ -363,7 +354,7 @@ void CPU_cycle(void) {
 	case 24 :	//Push PC.HIGH byte to stack
 		if (cpu_emu_data.opcode = 0x20) CPU_REGISTERS.PC.REG++;			//***Fix this bodge***
 	    Memory_access(write_op, 0x0100 | CPU_REGISTERS.SP, CPU_REGISTERS.PC.BYTE.HIGH);
-		
+
 		CPU_REGISTERS.SP--;
 		break;
 
@@ -409,7 +400,7 @@ void CPU_cycle(void) {
 
 	case 30:	//Pull S_REG from stack
 		CPU_REGISTERS.SP++;
-		CPU_REGISTERS.S_REG.REG = Memory_access(fetch_op, 0x0100 | CPU_REGISTERS.SP, 0);				//*******************if BRK - SET B bit in status reg!*******************
+		CPU_REGISTERS.S_REG.REG = Memory_access(fetch_op, 0x0100 | CPU_REGISTERS.SP, 0);
 		if (CPU_REGISTERS.S_REG.BIT.BL != 0) {
 			//Do stuff
 		}
@@ -2100,7 +2091,7 @@ void Instruction_lookup(cpu_emu_dat *cpu_emu_data) {
 
 
 	default:
-		//Unsupported operation! 
+		//Unsupported operation! *(This will be handled better in final!)
 		//Need to interrupt host here to tell user game is not supported
 		printf("Opcode 0x%.2X is currently unsupported\n", cpu_emu_data->opcode);
 		printf("PC value = 0x%.4X\n", CPU_REGISTERS.PC.REG);
@@ -2191,20 +2182,15 @@ void ADC(cpu_emu_dat *cpu_emu_data) {
 	sum  = CPU_REGISTERS.ACC_REG + cpu_emu_data->data + CPU_REGISTERS.S_REG.BIT.C;
 	temp = CPU_REGISTERS.ACC_REG + cpu_emu_data->data + CPU_REGISTERS.S_REG.BIT.C;
 	
-	if ((CPU_REGISTERS.ACC_REG ^ sum) & (cpu_emu_data->data ^ sum) & 0x80) {
-		CPU_REGISTERS.S_REG.BIT.V = 1;
-	}
-	else {
-		CPU_REGISTERS.S_REG.BIT.V = 0;
-	}
+	if ((CPU_REGISTERS.ACC_REG ^ sum) & (cpu_emu_data->data ^ sum) & 0x80) CPU_REGISTERS.S_REG.BIT.V = 1;
+	else CPU_REGISTERS.S_REG.BIT.V = 0;
+	
 	
 	CPU_REGISTERS.ACC_REG += cpu_emu_data->data + CPU_REGISTERS.S_REG.BIT.C;
 	CPU_REGISTERS.S_REG.BIT.C = 0;
 
-	if (temp > 0x00FF) {
-		CPU_REGISTERS.S_REG.BIT.C = 1;
-	}
-
+	if (temp > 0x00FF) CPU_REGISTERS.S_REG.BIT.C = 1;
+	
 	//Update negative flag
 	if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
 	else CPU_REGISTERS.S_REG.BIT.N = 0;
@@ -2219,7 +2205,6 @@ void AND(cpu_emu_dat *cpu_emu_data) {
 	//AND - 'AND' memory with accumulator
 	//Affects flags - N,Z
 	CPU_REGISTERS.ACC_REG &= cpu_emu_data->data;
-
 	//Update negative flag
 	if (CPU_REGISTERS.ACC_REG & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
 	else CPU_REGISTERS.S_REG.BIT.N = 0;
@@ -2261,12 +2246,8 @@ void BCC(cpu_emu_dat *cpu_emu_data) {
 
 	//BCC - Branch on carry clear (if C = 0)
 	//Affects flags - NONE
-	if (CPU_REGISTERS.S_REG.BIT.C == 0 ) {
-		cpu_emu_data->branch_taken = true;
-	}
-	else {
-		cpu_emu_data->branch_taken = false;
-	}
+	if (CPU_REGISTERS.S_REG.BIT.C == 0 ) cpu_emu_data->branch_taken = true;
+	else cpu_emu_data->branch_taken = false;
 }
 
 
@@ -2274,12 +2255,8 @@ void BCS(cpu_emu_dat *cpu_emu_data) {
 
 	//BCS - Branch on carry set (if C = 1)
 	//Affects flags - NONE
-	if ( CPU_REGISTERS.S_REG.BIT.C == 1 ) {
-		cpu_emu_data->branch_taken = true;
-	}
-	else {
-		cpu_emu_data->branch_taken = false;
-	}
+	if ( CPU_REGISTERS.S_REG.BIT.C == 1 ) cpu_emu_data->branch_taken = true;
+	else cpu_emu_data->branch_taken = false;
 }
 
 
@@ -2287,12 +2264,8 @@ void BEQ(cpu_emu_dat *cpu_emu_data) {
 
 	//BEQ - Branch on result zero (if Z = 1)
 	//Affects flags - NONE
-	if ( CPU_REGISTERS.S_REG.BIT.Z == 1 ) {
-		cpu_emu_data->branch_taken = true;
-	}
-	else {
-		cpu_emu_data->branch_taken = false;
-	}
+	if ( CPU_REGISTERS.S_REG.BIT.Z == 1 ) cpu_emu_data->branch_taken = true;
+	else cpu_emu_data->branch_taken = false;
 }
 
 
@@ -2315,13 +2288,8 @@ void BMI(cpu_emu_dat *cpu_emu_data) {
 
 	//BMI - Branch on result minus (branch if flag N = 1)
 	//Affects flags - NONE
-	if ( CPU_REGISTERS.S_REG.BIT.N == 1 ) {
-		cpu_emu_data->branch_taken = true;
-	}
-	else {
-		cpu_emu_data->branch_taken = false;
-	}
-
+	if ( CPU_REGISTERS.S_REG.BIT.N == 1 ) cpu_emu_data->branch_taken = true;
+	else cpu_emu_data->branch_taken = false;
 }
 
 
@@ -2329,12 +2297,8 @@ void BNE(cpu_emu_dat *cpu_emu_data) {
 
 	//BNE - Branch on result not zero (branch if flag Z = 0)
 	//Affects flags - NONE
-	if ( CPU_REGISTERS.S_REG.BIT.Z == 0 ) {
-		cpu_emu_data->branch_taken = true;
-	}
-	else {
-		cpu_emu_data->branch_taken = false;
-	}
+	if ( CPU_REGISTERS.S_REG.BIT.Z == 0 ) cpu_emu_data->branch_taken = true;
+	else cpu_emu_data->branch_taken = false;
 }
 
 
@@ -2342,12 +2306,8 @@ void BPL(cpu_emu_dat *cpu_emu_data) {
 
 	//BPL - Branch on result positive (branch if flag N = 0)
 	//Affects flags - NONE
-	if ( CPU_REGISTERS.S_REG.BIT.N == 0 ) {
-		cpu_emu_data->branch_taken = true;
-	}
-	else {
-		cpu_emu_data->branch_taken = false;
-	}
+	if ( CPU_REGISTERS.S_REG.BIT.N == 0 ) cpu_emu_data->branch_taken = true;
+	else cpu_emu_data->branch_taken = false;
 }
 
 
@@ -2366,12 +2326,8 @@ void BVC(cpu_emu_dat *cpu_emu_data) {
 
 	//BVC - Branch on overflow clear (branch if flag V = 0)
 	//Affects flags - NONE
-	if (CPU_REGISTERS.S_REG.BIT.V == 0 ) {
-		cpu_emu_data->branch_taken = true;
-	}
-	else {
-		cpu_emu_data->branch_taken = false;
-	}
+	if (CPU_REGISTERS.S_REG.BIT.V == 0 ) cpu_emu_data->branch_taken = true;
+	else cpu_emu_data->branch_taken = false;
 }
 
 
@@ -2379,12 +2335,8 @@ void BVS(cpu_emu_dat *cpu_emu_data) {
 
 	//BVS - Branch on overflow set (branch if flag V = 1)
 	//Affects flags - NONE
-	if ( CPU_REGISTERS.S_REG.BIT.V == 1 ) {
-		cpu_emu_data->branch_taken = true;
-	}
-	else {
-		cpu_emu_data->branch_taken = false;
-	}
+	if ( CPU_REGISTERS.S_REG.BIT.V == 1 ) cpu_emu_data->branch_taken = true;
+	else cpu_emu_data->branch_taken = false;
 }
 
 
@@ -2426,18 +2378,10 @@ void CMP(cpu_emu_dat *cpu_emu_data) {
 	//Set flag C if A >= M, Set flag Z if A = M, Set flag N if bit 7 of result is set 
 	//Affects flags - N,Z,C
 	unsigned char result = CPU_REGISTERS.ACC_REG - cpu_emu_data->data;
-	if (CPU_REGISTERS.ACC_REG >= cpu_emu_data->data) {
-		CPU_REGISTERS.S_REG.BIT.C = 1;
-	}
-	else {
-		CPU_REGISTERS.S_REG.BIT.C = 0;
-	}
-	if (CPU_REGISTERS.ACC_REG == cpu_emu_data->data) {
-		CPU_REGISTERS.S_REG.BIT.Z = 1;
-	}
-	else {
-		CPU_REGISTERS.S_REG.BIT.Z = 0;
-	}
+	if (CPU_REGISTERS.ACC_REG >= cpu_emu_data->data) CPU_REGISTERS.S_REG.BIT.C = 1;
+	else CPU_REGISTERS.S_REG.BIT.C = 0;
+	if (CPU_REGISTERS.ACC_REG == cpu_emu_data->data) CPU_REGISTERS.S_REG.BIT.Z = 1;
+	else CPU_REGISTERS.S_REG.BIT.Z = 0;
 	//Update negative flag
 	if (result & (1 << 7)) CPU_REGISTERS.S_REG.BIT.N = 1;
 	else CPU_REGISTERS.S_REG.BIT.N = 0;
@@ -2598,7 +2542,6 @@ void INY(cpu_emu_dat *cpu_emu_data) {
 }*/
 
 
-
 /*void JSR(cpu_emu_dat *cpu_emu_data) {
 
 	//This operation is handled entirely by the state machine!
@@ -2673,7 +2616,6 @@ void LSR(cpu_emu_dat *cpu_emu_data) {
 		else CPU_REGISTERS.S_REG.BIT.Z = 0;
 	}
 	CPU_REGISTERS.S_REG.BIT.N = 0;
-
 }
 
 
@@ -2890,7 +2832,6 @@ void TAX(cpu_emu_dat *cpu_emu_data) {
 	//Update zero flag
 	if (CPU_REGISTERS.X_REG == 0) CPU_REGISTERS.S_REG.BIT.Z = 1;
 	else CPU_REGISTERS.S_REG.BIT.Z = 0;
-
 }
 
 
@@ -2959,6 +2900,3 @@ void TYA(cpu_emu_dat *cpu_emu_data) {
 //************************************************************************************************
 //************************************************************************************************
 //************************************************************************************************
-
-
-

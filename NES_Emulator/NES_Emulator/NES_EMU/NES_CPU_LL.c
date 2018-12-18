@@ -14,14 +14,12 @@
 extern CPU_registers CPU_REGISTERS;
 extern unsigned char NES_MEMORY[65536];
 extern ROM_data		 ROM_DATA;
-extern FILE *CPU_LOG;
 
 
 
 unsigned char Memory_access(unsigned char operation, unsigned short memory_address, unsigned char data) {
 
 	/*
-
 	MAPPER BANK SWITCHES MUST BE HANDLED IN THIS FUNCTION!!!
 	THE MAPPER FUNCTION POINTER WILL BE CALLED WHEN A BANK SWITCH IS DETECTED.
 
@@ -39,15 +37,11 @@ unsigned char Memory_access(unsigned char operation, unsigned short memory_addre
 	0x4020 - 0xFFFF		0xBFE0		Cartridge space : PRG ROM, PRG RAM, and mapper registers.
 	*/
 
-	static unsigned short prev_fetch_addr = 0;
-	if (operation == fetch_op) {
-		prev_fetch_addr = memory_address;
-	}
-	else if (operation == fetch_previous) {
-		memory_address = prev_fetch_addr;
-	}
-
 	unsigned char fetched_byte = 0;
+	static unsigned short prev_fetch_addr = 0;
+
+	if (operation == fetch_op) prev_fetch_addr = memory_address;
+	else if (operation == fetch_previous) memory_address = prev_fetch_addr;
 
 	//Apply mapper mask
 	memory_address &= ROM_DATA.mapper_mask;
@@ -63,15 +57,9 @@ unsigned char Memory_access(unsigned char operation, unsigned short memory_addre
 	}
 
 	//Perform read/write operation
-	if (operation == fetch_op) {
-		return NES_MEMORY[memory_address];
-	}
-	else if (operation == write_op) {
-		NES_MEMORY[memory_address] = data;
-	}
-	else if (operation == fetch_previous) {
-		return NES_MEMORY[memory_address];
-	}
+	if (operation == fetch_op) return NES_MEMORY[memory_address];
+	else if (operation == write_op) NES_MEMORY[memory_address] = data;
+	else if (operation == fetch_previous) return NES_MEMORY[memory_address];
 
 	return 0;
 }
