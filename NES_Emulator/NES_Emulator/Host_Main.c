@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include "NES_EMU\NES.h"
 
-
+//Local globals
 FILE *ROM_FP;
 FILE *CPU_LOG_TXT;
 FILE *CPU_LOG_CSV;

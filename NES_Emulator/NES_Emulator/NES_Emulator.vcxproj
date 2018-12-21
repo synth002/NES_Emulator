@@ -118,13 +118,14 @@
     <ClCompile Include="NES_EMU\NES_CPU_LL.c" />
     <ClCompile Include="NES_EMU\NES_Main.c" />
     <ClCompile Include="NES_EMU\NES_PPU_HL.c" />
+    <ClCompile Include="NES_EMU\NES_PPU_LL.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Host_Main.h" />
     <ClInclude Include="NES_EMU\NES.h" />
     <ClInclude Include="NES_EMU\NES_CPU.h" />
     <ClInclude Include="NES_EMU\NES_CPU_Shared.h" />
-    <ClInclude Include="NES_PPU.h" />
+    <ClInclude Include="NES_EMU\NES_PPU.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

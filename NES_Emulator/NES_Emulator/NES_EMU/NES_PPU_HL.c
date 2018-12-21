@@ -1,46 +1,149 @@
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include "NES_PPU.h"
 
 
 
 /*
-	The NTSC video signal is made up of 262 scanlines, and 20 of those are spent in vblank state.
-	After the program has received an NMI, it has about 2270 cycles to update the palette, sprites, 
-	and nametables as necessary before rendering begins.
+	**** Screen resolution: 256 x 240 ****
+	NOTE: For NTSC NES, the actual area displayed on screen is 256x224
 
-	On NTSC systems, the PPU divides the master clock by 4 while the CPU uses the master clock divided by 12. 
-	Since both clocks are fed off the same master clock, this means that there are exactly three PPU ticks per CPU cycle,
-	with no drifting over time(though the clock alignment might vary depending on when you press the Reset button).
+	**** Three PPU clocks for every CPU clock event ****
+
+	PPU renders 262 scanlines per frame, each scanline lasts for 341 clock cycles,
+	with each clock cycle producing one pixel.
+
+
+
+	---- Line-by-Line Timing ----
+
+	Pre-render scanline (-1/261)
+
+
+
+	--- PPU Memory Map ----
+
+	---------------------
+	0x0000-0x0FFF	(4096 Bytes)	Pattern table 0
+	0x1000-0x1FFF	(4096 Bytes)	Pattern Table 1
+	---------------------
+	0x2000-0x23BF	(n Bytes)		Nametable 0
+	0x23C0-0x23FF   (n Bytes)		Attribute Table 0
+	---------------------
+	0x2400-0x27BF	(n Bytes)		Nametable 1
+	0x27C0-0x27FF   (n Bytes)		Attribute Table 1
+	---------------------
+	0x2800-0x2BBF	(n Bytes)		Nametable 2
+	0x2BC0-0x2BFF   (n Bytes)		Attribute Table 2
+	---------------------
+	0x2C00-0x2FBF	(n Bytes)		Nametable 3
+	0x2FC0-0x2FFF	(n Bytes)		Attribute Table 3
+	---------------------
+	0x3000-0x3EFF	(n Bytes)		Mirrors of 0x2000-0x2EFF
+	---------------------
+	0x3F00-0x3F0F	(n Bytes)		Background Palettes
+	0x3F10-0x3F1F   (n Bytes)		Sprite Palettes
+	---------------------
+	0x3F20-0x3FFF   (n Bytes)		Mirrors of 0x3F00-0x3F1F
+	---------------------
+	0x4000-0xFFFF	(n Bytes)		Mirrors of 0x0000-0x3FFF
+	---------------------
 */
 
 
-//Resolution 256 (H) x 240 (V)
 
 
+//Local globals 
+unsigned char        OAM_MEMORY[256]	= { 0 };
+unsigned char		 PPU_MEMORY[16384]	= { 0 };
+
+//Extern globals
 extern unsigned char NES_MEMORY[65536];
-unsigned char NES_PPU_OUTPUT[240][256];
-
-
-/*
-	PPU Memory Map 
-
-	$0000-$0FFF	(4096 Bytes)	Pattern table 0
-	$1000-$1FFF	(4096 Bytes)	Pattern Table 1
-	$2000-$23FF	(1024 Bytes)	Nametable 0
-	$2400-$27FF	(1024 Bytes)	Nametable 1
-	$2800-$2BFF	(1024 Bytes)	Nametable 2
-	$2C00-$2FFF	(1024 Bytes)	Nametable 3
-	$3000-$3EFF	(3840 Bytes)	Mirrors of $2000-$2EFF
-	$3F00-$3F1F	(32 Bytes)		Palette RAM indexes
-	$3F20-$3FFF	(224 Bytes)		Mirrors of $3F00-$3F1F
-
-	Total : 15360 Bytes
-*/
 
 
 
-void PPU_Cycle(void) {
+
+//******************************************************
+//********** Init PPU runtime attributes ***************
+void Init_ppu_attributes(ppu_emu_dat *ppu_emu_data) {
+
+	ppu_emu_data->cycle = 0;
+	ppu_emu_data->state = pre_render;
+}
+//******************************************************
+//******************************************************
 
 
 
+
+//****************************************************************
+//*************** NES PPU STATE MACHINE **************************
+void PPU_Cycle(unsigned char reset) {
+
+	static ppu_emu_dat ppu_emu_data;
+
+	if (reset) {
+		Init_ppu_attributes(&ppu_emu_data);
+	}
+
+	switch (1) {
+
+	case pre_render:
+		Pre_render(&ppu_emu_data);
+		break;
+
+	case render:
+		break;
+
+	case sprite_tiles_for_next:
+		break;
+
+	case two_tiles_for_next:
+		break;
+
+	case two_byte_fetches:
+		break;
+
+	case post_render:
+		break;
+
+	case Vblank: 
+
+		break;
+
+	default:
+		break;
+
+	}
+
+}
+//****************************************************************
+//****************************************************************
+
+
+void Pre_render(ppu_emu_dat * ppu_emu_data) {
+
+	static unsigned short nametable_addr;
+
+	switch (ppu_emu_data->cycle) {
+
+	case 1:
+		nametable_addr = Get_base_nametable_addr();
+		break;
+
+	case 2:
+		
+		break;
+
+
+	default:
+		//Error
+		break;
+
+	}
+
+	ppu_emu_data->cycle++;
 
 }

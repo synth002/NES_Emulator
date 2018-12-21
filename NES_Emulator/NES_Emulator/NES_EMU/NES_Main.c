@@ -16,8 +16,7 @@
 
 
 
-
-//***Local globals*** 
+//Local globals 
 ROM_data		ROM_DATA;
 unsigned char	NES_MEMORY[65536] = { 0 };
 
@@ -105,9 +104,20 @@ unsigned char Setup_emulator(char *ROM_header) {
 
 
 void Emulator_action_tick(void) {
+
+	static reset = 1;
+
+
 	CPU_cycle();
-	//PPU_cycle();
-	//APU_cycle();
+
+	PPU_cycle(reset);
+	reset = 0;
+	PPU_cycle(reset);
+	PPU_cycle(reset);
+
+	APU_cycle();
+
+
 };
 
 

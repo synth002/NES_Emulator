@@ -30,6 +30,9 @@
     <ClCompile Include="NES_EMU\NES_PPU_HL.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="NES_EMU\NES_PPU_LL.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Host_Main.h">
@@ -44,7 +47,7 @@
     <ClInclude Include="NES_EMU\NES_CPU_Shared.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="NES_PPU.h">
+    <ClInclude Include="NES_EMU\NES_PPU.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
